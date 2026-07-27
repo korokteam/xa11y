@@ -7,12 +7,12 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 xa11y can drive a target application in two distinct ways:
 
-- **Accessibility actions** — `locator.press()`, `locator.type_text()`, `locator.toggle()`, etc. These call the platform accessibility API directly. They work even when the target window is not focused, are deterministic, and are the preferred way to drive a UI.
-- **Input simulation** — `InputSim` generates OS-level pointer and keyboard events at the system event layer (CGEvent on macOS, SendInput on Windows, XTest on X11).
+- **Accessibility actions** are `locator.press()`, `locator.type_text()`, `locator.toggle()`, and the rest. These call the platform accessibility API directly. They are deterministic and work even when the target window is not focused, which makes them the preferred way to drive a UI.
+- **Input simulation** is `InputSim`, which generates OS-level pointer and keyboard events at the system event layer (CGEvent on macOS, SendInput on Windows, XTest on X11).
 
 **Prefer accessibility actions wherever possible.** Reach for input simulation only for gestures that have no accessibility equivalent: drag-and-drop, scroll wheels, global shortcuts, or tests that must exercise the event loop itself.
 
-The two mechanisms are not bridged. A failed accessibility action never falls back to input simulation, and input simulation never inspects the accessibility tree for you. If you want to click an element with synthesised input, you compute its bounds via the a11y API and hand a point or `Element` to `InputSim`.
+The mechanisms are not bridged. A failed accessibility action never falls back to input simulation, and input simulation never inspects the accessibility tree for you. If you want to click an element with synthesised input, you compute its bounds via the a11y API and hand a point or `Element` to `InputSim`.
 
 ## When to use which
 
@@ -32,11 +32,11 @@ The two mechanisms are not bridged. A failed accessibility action never falls ba
 | macOS | Accessibility + Input Monitoring for the terminal/IDE running your code |
 | Windows | None for normal user sessions |
 | Linux (X11) | `XTest` extension enabled on the X server. Zero setup. |
-| Linux (Wayland / headless) | Membership in the `input` group (`sudo usermod -aG input $USER` then re-login). xa11y opens `/dev/uinput` and registers a virtual evdev keyboard+pointer — same mechanism used by `xdotool --using-uinput`, `ydotool`, `wtype`, Steam Input, and Wine. **The privilege grants global input read/write access** — comparable to macOS Input Monitoring. |
+| Linux (Wayland / headless) | Membership in the `input` group (`sudo usermod -aG input $USER` then re-login). xa11y opens `/dev/uinput` and registers a virtual evdev keyboard+pointer, the same mechanism used by `xdotool --using-uinput`, `ydotool`, `wtype`, Steam Input, and Wine. **The privilege grants global input read/write access**, comparable to macOS Input Monitoring. |
 
 On macOS, input simulation usually also requires the target window to be foregrounded. Activate the window explicitly before synthesising input.
 
-xa11y picks the Linux backend at runtime: if `DISPLAY` is set we drive XTest; otherwise we fall through to uinput. There is no compile-time feature flag — both backends are always built into `xa11y-linux`. The uinput path is compositor-agnostic, so it works on every Wayland desktop (GNOME, KDE Plasma, sway, Hyprland, Cosmic, weston) and also on headless Linux servers. Errors from a missing `input` group surface as `PermissionDenied` with an actionable message; a missing `uinput` kernel module surfaces as `Unsupported`.
+xa11y picks the Linux backend at runtime: if `DISPLAY` is set we drive XTest, and otherwise we use uinput. There is no compile-time feature flag, and both backends are always built into `xa11y-linux`. The uinput path is compositor-agnostic, so it works on every Wayland desktop (GNOME, KDE Plasma, sway, Hyprland, Cosmic, weston) and also on headless Linux servers. Errors from a missing `input` group surface as `PermissionDenied` with a message saying what to do about it. A missing `uinput` kernel module surfaces as `Unsupported`.
 
 ## Basic usage
 
@@ -114,8 +114,8 @@ xa11y picks the Linux backend at runtime: if `DISPLAY` is set we drive XTest; ot
 
 Every pointer method accepts either a screen-space point or an `Element`:
 
-- **Point** — absolute screen coordinates in logical (device-independent) units: points on macOS, DIPs on Windows, and logical pixels on Linux (physical where the HiDPI scale can't be read reliably — see [platform details](/guides/platform-details/#coordinates-and-hidpi)). Origin is the top-left of the primary display; negative values are valid on multi-monitor setups.
-- **Element** — uses the centre of the element's `bounds` at the time of the call. `InputSim` does not re-read the accessibility tree for you — re-fetch via a locator first if the UI may have moved.
+- **Point** is absolute screen coordinates in logical (device-independent) units. That means points on macOS and DIPs on Windows. On Linux it means logical pixels, or physical pixels where the HiDPI scale can't be read reliably (see [platform details](/guides/platform-details/#coordinates-and-hidpi)). Origin is the top-left of the primary display, and negative values are valid on multi-monitor setups.
+- **Element** uses the centre of the element's `bounds` at the time of the call. `InputSim` does not re-read the accessibility tree for you, so re-fetch via a locator first if the UI may have moved.
 
 In Rust, additional anchors are available via `ClickOptions.anchor` (`Anchor::TopLeft`, `Anchor::Offset { dx, dy }`, etc.).
 
@@ -177,11 +177,11 @@ In Rust, additional anchors are available via `ClickOptions.anchor` (`Anchor::To
   </TabItem>
 </Tabs>
 
-Scroll: positive `dx` scrolls right, positive `dy` scrolls content down (moves the viewport up), in platform "ticks" (typically one notch of a physical scroll wheel).
+Scroll units are platform "ticks", typically one notch of a physical scroll wheel. Positive `dx` scrolls right. Positive `dy` scrolls content down, which moves the viewport up.
 
 ## Keyboard
 
-Modifier keys (`Shift`, `Ctrl`, `Alt`, `Meta`) are ordinary keys — pass them alongside character keys. `Meta` is the platform's "command" modifier: Cmd on macOS, Win on Windows, Super on Linux.
+Modifier keys (`Shift`, `Ctrl`, `Alt`, `Meta`) are ordinary keys, so pass them alongside character keys. `Meta` is the platform's "command" modifier, spelled Cmd on macOS, Win on Windows, and Super on Linux.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">
@@ -290,6 +290,6 @@ Drag-and-drop has no accessibility equivalent on most platforms. Resolve both en
 | --- | --- |
 | `PermissionDenied` | OS denied the synthesis permission (macOS Input Monitoring, etc.) |
 | `Unsupported` | Platform has no backend for the operation (e.g. Linux session with neither `DISPLAY` nor `WAYLAND_DISPLAY` set) |
-| `NoElementBounds` | Target `Element` has no bounds — re-fetch it or anchor on a point |
+| `NoElementBounds` | Target `Element` has no bounds. Re-fetch it or anchor on a point |
 | `InvalidActionData` | Uppercase `Char` key, malformed key name, or bad target tuple |
 | `Platform` | Raw OS failure (FFI return code etc.) |

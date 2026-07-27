@@ -19,6 +19,12 @@ docs/site/src/content/docs/api/javascript.mdx
 # unpinned previously let an incompatible transitive release (alloc-no-stdlib
 # 3.0.0 via brotli) break CI on every PR.
 
+# Vale styles fetched by `vale sync` from the `Packages` line in .vale.ini.
+# The config and the project vocabulary are committed; the downloaded rule
+# files are not, the same way vendored dependencies aren't.
+/.github/styles/*
+!/.github/styles/config/
+
 # Scratch files written by the release-note workflows (.github/workflows/
 # publish.yml and update-release-notes.yml) into the checkout root.
 /release-notes-context.txt

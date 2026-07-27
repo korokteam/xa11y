@@ -38,6 +38,7 @@ COMMANDS:
     test-matrix-check   Validate the tests/matrix.yaml coverage index
     test-harness        Unit-test the shared integ harness (tests/harness/)
     docs                Build documentation
+    lint-docs           Lint README + docs prose with Vale (requires the `vale` binary)
     coverage            Generate code coverage report
     fuzz [ARGS..]       Run provider fuzzer (pass-through args)
     sync-readmes [--check]  Generate crates.io/PyPI READMEs from root README.md
@@ -77,6 +78,7 @@ fn main() -> ExitCode {
         "test-matrix-check" => do_test_matrix_check(),
         "test-harness" => do_test_harness(),
         "docs" => do_docs(),
+        "lint-docs" => do_lint_docs(),
         "coverage" => do_coverage(),
         "fuzz" => do_fuzz(rest),
         "sync-readmes" => do_sync_readmes(rest),
@@ -522,6 +524,39 @@ fn do_test_harness() -> bool {
     heading("Integ harness self-tests");
     let root = project_root();
     run_in("python", &["-m", "pytest", "tests/harness", "-v"], &root)
+}
+
+/// Paths the prose linter covers: the root README and every hand-written
+/// page of the docs site. Generated API reference pages live under
+/// `docs/site/src/content/docs/api/` and are excluded by `.vale.ini`.
+const VALE_TARGETS: &[&str] = &["README.md", "docs/site/src/content/docs"];
+
+/// Lint README and docs prose with Vale (`.vale.ini` at the repo root).
+///
+/// Vale is a Go binary rather than a Cargo dependency, so this reports a
+/// missing install as a failure with instructions rather than skipping the
+/// check: a doc-lint that quietly passes when the linter is absent is worse
+/// than no check at all.
+fn do_lint_docs() -> bool {
+    heading("Lint docs prose (vale)");
+    let root = project_root();
+
+    if Command::new("vale").arg("--version").output().is_err() {
+        eprintln!("`vale` was not found on PATH.");
+        eprintln!("Install it from https://vale.sh/docs/install, then re-run.");
+        eprintln!("  macOS:  brew install vale");
+        eprintln!("  Linux:  download the release tarball for your arch");
+        return false;
+    }
+
+    // Downloads the pinned `ai-tells` package into .github/styles/. A no-op
+    // once the styles are present, so it is safe to run on every invocation.
+    if !run_in("vale", &["sync"], &root) {
+        eprintln!("`vale sync` failed: could not fetch the styles named in .vale.ini.");
+        return false;
+    }
+
+    run_in("vale", VALE_TARGETS, &root)
 }
 
 fn do_docs() -> bool {

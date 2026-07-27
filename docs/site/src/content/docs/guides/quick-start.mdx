@@ -32,22 +32,22 @@ import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 ## Platform setup
 
-**macOS** — Two permissions are required:
+**macOS** needs two permissions:
 
-1. **Accessibility** — System Settings → Privacy & Security → Accessibility. Grant permission to your terminal (or IDE).
-2. **Screen & System Audio Recording** (macOS 26+) — System Settings → Privacy & Security → Screen & System Audio Recording. Grant permission to your terminal. Without this, the accessibility API only exposes menu bars — window content (buttons, text fields, etc.) is invisible.
+1. **Accessibility**, under System Settings → Privacy & Security → Accessibility. Grant permission to your terminal (or IDE).
+2. **Screen & System Audio Recording** (macOS 26+), under System Settings → Privacy & Security → Screen & System Audio Recording. Grant permission to your terminal. Without it, the accessibility API exposes menu bars alone. Window content such as buttons and text fields stays invisible.
 
 After changing permissions, restart your terminal for them to take effect. `App::by_name()` (Rust) or `xa11y.App.by_name()` (Python) will return a `PermissionDenied` error with setup instructions if either permission is missing.
 
-**Linux** — Ensure AT-SPI2 is running (default on GNOME and most desktop environments). No special permissions needed. Electron and Chromium-based apps (VS Code, Cursor, Chrome) require an additional launch flag to expose their accessibility tree — see [Platform Details](/guides/platform-details/#linux-electron-and-chromium-apps).
+**Linux** needs AT-SPI2 running (the default on GNOME and most desktop environments), and nothing else to grant. Electron and Chromium-based apps (VS Code, Cursor, Chrome) require an additional launch flag to expose their accessibility tree. See [Platform Details](/guides/platform-details/#linux-electron-and-chromium-apps).
 
-**Windows** — No special permissions needed.
+**Windows** works as installed.
 
 ## Discover the tree first
 
 Before writing selectors, dump the app's accessibility tree so you know the exact roles and names to target. Accessibility labels are often different from what's painted on screen, so don't guess.
 
-The fastest way is the CLI — it dumps the whole app in one command and works the same regardless of language:
+The fastest way is the CLI, which dumps the whole app in one command and works the same regardless of language:
 
 ```bash
 xa11y apps                      # list running apps with PIDs
@@ -242,13 +242,13 @@ From code, `dump()` and `tree()` are available on `App`, `Locator`, and `Element
 | `group > button`                           | Buttons that are direct children of a group |
 | `window button[name='OK']`                 | Button named "OK" anywhere inside a window |
 | `button:nth(2)`                            | The 2nd button match             |
-| `button[name='All Clear'], button[name='Clear']` | Either button — see *Selector groups* below |
+| `button[name='All Clear'], button[name='Clear']` | Either button (see *Selector groups* below) |
 
 ### Selector groups (alternation)
 
 A top-level comma separates *alternation clauses*: the result is the union
 of each clause's matches, deduplicated by element identity and returned in
-document order — the same semantics CSS uses for selector lists. This is
+document order, the same semantics CSS uses for selector lists. This is
 useful when the label of an element changes with state and you want one
 locator that handles every variant:
 
@@ -273,6 +273,6 @@ Commas inside quoted attribute values (`[name='a,b']`) are not separators.
 
 ## Next steps
 
-- [Overview](/guides/overview/) — concepts, architecture, and how xa11y compares to other tools
-- [Rust API Reference](https://docs.rs/xa11y/) — full Rust API documentation on docs.rs
-- [Python API Reference](/api/python/) — full Python API documentation
+- [Overview](/guides/overview/) covers concepts, architecture, and how xa11y compares to other tools
+- [Rust API Reference](https://docs.rs/xa11y/) is the full Rust API documentation on docs.rs
+- [Python API Reference](/api/python/) is the full Python API documentation

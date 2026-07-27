@@ -5,11 +5,11 @@ description: What xa11y is, how it works, and how it compares to other tools.
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
-**xa11y** is a cross-platform library for reading accessibility trees, taking actions, listening to accessibility event streams, synthesising low-level input, and capturing screenshots.
+**xa11y** is a cross-platform library for reading accessibility trees and acting on them. It also subscribes to accessibility event streams, and can synthesise low-level input or capture screenshots.
 
 ## What is desktop accessibility?
 
-Most desktop applications expose an **accessibility tree** — a structured representation of their UI intended for screen readers and other assistive technology. Each platform has its own API for this (macOS AXUIElement, Windows UI Automation, Linux AT-SPI2), but the underlying concepts are the same. xa11y provides a single API that works with all of them.
+Most desktop applications expose an **accessibility tree**, a structured representation of their UI intended for screen readers and other assistive technology. Each platform has its own API for this (macOS AXUIElement, Windows UI Automation, Linux AT-SPI2), but the underlying concepts are the same. xa11y provides a single API that works with all of them.
 
 ### Trees
 
@@ -29,7 +29,7 @@ An accessibility tree mirrors the visual hierarchy of an application. Here's wha
       ...
 ```
 
-Every element in the tree has properties. For example, here's the full data for `button "+"`:
+Every element in the tree has properties. Here's the full data for `button "+"`:
 
 ```
 role:    button
@@ -42,19 +42,19 @@ actions: press, focus
 
 ### Actions
 
-Accessibility APIs let you interact with elements: press buttons, type into fields, toggle checkboxes, expand menus, scroll, and more. xa11y exposes all of these through a unified action API.
+Accessibility APIs expose the operations an element supports, from pressing a button or typing into a field to expanding a menu and scrolling a pane. xa11y offers all of these through a unified action API.
 
 ### Input simulation
 
-For the small set of gestures with no accessibility equivalent — drag-and-drop, scroll wheels, global shortcuts — xa11y also ships an [`InputSim`](/guides/input/) façade that synthesises OS-level pointer and keyboard events. Input simulation lives in its own surface (`xa11y::input_sim()` / `xa11y.input_sim()` / `inputSim()`) and never falls back from an accessibility action automatically — prefer `locator.press()` and `locator.type_text()` whenever they work.
+For the small set of gestures with no accessibility equivalent (drag-and-drop, scroll wheels, global shortcuts) xa11y also offers an [`InputSim`](/guides/input/) façade that synthesises OS-level pointer and keyboard events. Input simulation lives in its own surface (`xa11y::input_sim()` / `xa11y.input_sim()` / `inputSim()`) and never falls back from an accessibility action automatically. Prefer `locator.press()` and `locator.type_text()` whenever they work.
 
 ### Screenshots
 
-xa11y can capture pixel-level snapshots of the full screen, a region, or the pixels under an accessibility element. Useful for attaching visual evidence to test failures or feeding vision-language models the same frame the agent is reasoning about. See the [Screenshots guide](/guides/screenshots/).
+xa11y captures pixel-level snapshots of the full screen, an explicit region, or the area behind an accessibility element. This is useful for attaching visual evidence to test failures or feeding vision-language models the same frame the agent is reasoning about. See the [Screenshots guide](/guides/screenshots/).
 
 ### Events
 
-Accessibility APIs also emit events when the UI changes — elements appearing or disappearing, focus moving, names or values updating. For example, clicking a text field might emit:
+Accessibility APIs also emit events when the UI changes: elements appearing or disappearing, focus moving, names or values updating. Clicking a text field might emit:
 
 ```
 FocusChanged  app="Calculator"  target=text_field "Display"
@@ -64,21 +64,21 @@ xa11y supports subscribing to these event streams per-app via `app.subscribe()`.
 
 ## How does xa11y compare to other tools?
 
-xa11y reads accessibility trees from the outside, across all three desktop platforms, through one API. That distinguishes it from single-platform libraries like pywinauto and FlaUI, from pixel-matching tools like SikuliX, and from [AccessKit](https://accesskit.dev/), which *publishes* a tree rather than consuming one.
+xa11y reads accessibility trees from the outside, across all three desktop platforms, through one API. That distinguishes it from single-platform libraries such as pywinauto and FlaUI, and from pixel-matching tools such as SikuliX. It also differs from [AccessKit](https://accesskit.dev/), which *publishes* a tree rather than consuming one.
 
 See the [comparison page](/compare/) for the full landscape, capability tables, and when to choose something else.
 
 ## Concepts
 
-<img src="/concepts.svg" alt="Diagram showing xa11y's three concepts: Read (App → .children() → Element → .children()/.parent()), Act (App → .locator() → Locator → Actions/Waits/.element()/.elements()), and Listen (App → .subscribe() → Subscription → recv()/wait_for()/iter())" style="width:100%;max-width:720px;margin:1rem auto;display:block" />
+<img src="/concepts.svg" alt="Diagram of the Read, Act, and Listen paths through xa11y. Read goes App to .children() to Element. Act goes App to .locator() to Locator, then on to actions, waits, and .elements(). Listen goes App to .subscribe() to Subscription, then on to recv(), wait_for(), and iter()" style="width:100%;max-width:720px;margin:1rem auto;display:block" />
 
 xa11y is built around three core types:
 
-- **App** — entry point for interacting with an application. Construct via `App::by_name()`, `App::by_pid()`, `App::find()` (predicate-based discovery), or `App::list()`. An App provides three paths: `app.children()` for navigating the tree, `app.locator(selector)` for actions and waits, and `app.subscribe()` for event streams.
-- **Element** — a live handle to a node in the accessibility tree. Navigate with `children()` and `parent()` — each call queries the platform lazily. Read properties like `role`, `name`, `value`, `states`, `bounds`. Capture the subtree as a structured snapshot with `tree(max_depth)` or as an indented string with `dump(max_depth)`. Actions (`press()`, `set_value()`, etc.) are available too, acting on the captured handle without re-resolution or auto-wait.
-- **Locator** — a lazy selector that re-resolves on every operation. Use for actions (`press()`, `set_value()`, and others), waits (`wait_visible()`, and others), and querying (`element()`, `elements()`). Auto-waits for visible+enabled before acting and is the recommended path for most code. Inspired by [Playwright's Locator pattern](https://playwright.dev/docs/locators).
-- **Subscription** — live event stream from an app. Created via `app.subscribe()`. Pull events with `try_recv()`, `recv(timeout)`, `wait_for(predicate, timeout)`, or iterate with `iter()`. Drop to unsubscribe.
-- **Selector** — CSS-like query syntax used by Locator. Supports role matching, attribute filters, combinators, and nth selection.
+- **App** is the entry point for driving an application. Construct via `App::by_name()`, `App::by_pid()`, `App::find()` (predicate-based discovery), or `App::list()`. An App offers `app.children()` for tree navigation, `app.locator(selector)` for actions and waits, and `app.subscribe()` for event streams.
+- **Element** is a live handle to a node in the accessibility tree. Navigate with `children()` and `parent()`, where each call queries the platform lazily. Read properties like `role`, `name`, `value`, `states`, `bounds`. Capture the subtree as a structured snapshot with `tree(max_depth)` or as an indented string with `dump(max_depth)`. Actions (`press()`, `set_value()`, etc.) are available too, acting on the captured handle without re-resolution or auto-wait.
+- **Locator** is a lazy selector that re-resolves on every operation. Use for actions (`press()`, `set_value()`, and others), waits (`wait_visible()`, and others), and querying (`element()`, `elements()`). Auto-waits for visible+enabled before acting and is the recommended path for most code. Inspired by [Playwright's Locator pattern](https://playwright.dev/docs/locators).
+- **Subscription** is a live event stream from an app. Created via `app.subscribe()`. Pull events with `try_recv()`, `recv(timeout)`, `wait_for(predicate, timeout)`, or iterate with `iter()`. Drop to unsubscribe.
+- **Selector** is the CSS-like query syntax used by Locator. Supports role matching, attribute filters, combinators, and nth selection.
 
 ## Connecting to an app
 
@@ -152,7 +152,7 @@ xa11y is built around three core types:
 
 ### Lazy navigation
 
-`app.children()` returns the top-level elements (typically windows). Each `Element` supports `children()` and `parent()` for further navigation — every call queries the platform lazily, so you always see the current state of the UI.
+`app.children()` returns the top-level elements (typically windows). Each `Element` supports `children()` and `parent()` for further navigation. Every call queries the platform lazily, so you always see the current state of the UI.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">
@@ -201,7 +201,7 @@ Element navigation and snapshots: `children()`, `parent()`, `tree(max_depth)`, `
 
 ### Elements are live
 
-Every call to `children()` or `parent()` queries the platform. There are no cached snapshots — you always see the latest tree state.
+Every call to `children()` or `parent()` queries the platform. There are no cached snapshots, so you always see the latest tree state.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">
@@ -233,11 +233,11 @@ Every call to `children()` or `parent()` queries the platform. There are no cach
   </TabItem>
 </Tabs>
 
-To find specific elements, use a Locator (below) — it uses CSS-like selectors to find elements efficiently.
+To find specific elements, use a Locator (below), which uses CSS-like selectors to find elements efficiently.
 
 ### Subtree snapshots
 
-`element.tree(max_depth)` captures the subtree rooted at an element as a recursive data structure (`role`, `name`, `value`, `children`). `element.dump(max_depth)` formats the same snapshot as an indented string — useful for debugging and test diagnostics. Both accept an optional `max_depth` argument: `0` returns only the root node, `1` includes its direct children, and so on. Omit for the full subtree.
+`element.tree(max_depth)` captures the subtree rooted at an element as a recursive data structure (`role`, `name`, `value`, `children`). `element.dump(max_depth)` formats the same snapshot as an indented string, which is useful for debugging and test diagnostics. Both accept an optional `max_depth` argument: `0` returns only the root node, `1` includes its direct children, and so on. Omit for the full subtree.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">
@@ -347,7 +347,7 @@ A `Locator` holds a selector and **re-resolves on every operation**. Create one 
   </TabItem>
 </Tabs>
 
-**Best practice:** make selectors specific so they stay stable as the UI evolves. Don't select `button` — select `button[name='Cancel']` inside a specific group or window. A vague selector like `button` can become unreliable when new elements are added — it may match the wrong element or start returning multiple matches unexpectedly.
+**Best practice:** make selectors specific so they stay stable as the UI evolves. Instead of `button`, select `button[name='Cancel']` inside a specific group or window. A vague selector like `button` can become unreliable when new elements are added, matching the wrong element or returning several matches unexpectedly.
 
 **Actions:** `press()`, `focus()`, `blur()`, `toggle()`, `select()`, `expand()`, `collapse()`, `set_value()`, `set_numeric_value()`, `type_text()`, `select_text()`, `increment()`, `decrement()`, `show_menu()`, `scroll_into_view()`.
 
@@ -357,13 +357,13 @@ A `Locator` holds a selector and **re-resolves on every operation**. Create one 
 
 **Chaining:** `nth(n)`, `first()`, `child(selector)`, `descendant(selector)`.
 
-Locator re-resolves its selector on every operation, making it resilient to UI changes between calls. To inspect element properties or traverse the subtree, call `.element()` first — `tree()` and `dump()` live on `Element`, not `Locator`.
+Locator re-resolves its selector on every operation, making it resilient to UI changes between calls. To inspect element properties or traverse the subtree, call `.element()` first, because `tree()` and `dump()` live on `Element` rather than `Locator`.
 
 ### Element actions
 
 The same action verbs are also available directly on `Element`. A `Locator` re-resolves its selector and auto-waits for the element to be visible and enabled before acting; an `Element` acts on the snapshot you already captured, with no re-resolution and no auto-wait. If the underlying element has been destroyed since you fetched it, the call returns an `ElementStale` error.
 
-Reach for `Element` actions when you've already inspected an element — typically after `.dump()` or reading `.actions` — and want to act on that same instance. For everything else, use a `Locator`: it stays correct across UI changes and is the path most code should take.
+Reach for `Element` actions when you've already inspected an element, typically after `.dump()` or reading `.actions`, and want to act on that same instance. For everything else, use a `Locator`, which stays correct across UI changes and is the path most code should take.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">
@@ -404,7 +404,7 @@ Reach for `Element` actions when you've already inspected an element — typical
   </TabItem>
 </Tabs>
 
-**Recommended path: Locator.** Auto-wait and selector re-resolution make Locator resilient to tree changes between operations. Use `Element` actions only when you already hold the element and want to act on that exact instance.
+**Reach for Locator first.** Auto-wait and selector re-resolution make Locator resilient to tree changes between operations. Use `Element` actions only when you already hold the element and want to act on that exact instance.
 
 ## Selectors
 
@@ -419,16 +419,16 @@ button[name$='Cancel']              # ends-with (case-insensitive)
 group > button                      # direct child combinator
 window button[name='OK']            # descendant (any depth)
 button:nth(2)                       # 2nd match (1-based)
-button[name='Play'], button[name='Pause']  # alternation — see below
+button[name='Play'], button[name='Pause']  # alternation (see below)
 ```
 
 **Supported attributes:** `name`, `value`, `description`, `role`.
 
-**Operators:** `=` (exact, case-sensitive), `*=` (contains), `^=` (starts-with), `$=` (ends-with). Substring operators are case-insensitive.
+**Operators:** `=` (exact, case-sensitive), `*=` (contains), `^=` (starts-with), `$=` (ends-with). The substring operators are case-insensitive.
 
 **Roles use `snake_case`:** `button`, `text_field`, `check_box`, `radio_button`, `menu_item`, `tab_group`, `static_text`, `combo_box`, `list_item`, `table_row`, `table_cell`, `scroll_bar`, `progress_bar`, `tree_item`, `web_area`, `split_group`, `spin_button`, etc.
 
-**Selector groups (alternation):** A top-level comma separates alternation clauses, just like CSS selector lists. The result is the union of each clause's matches, deduplicated by element identity and returned in document order. Each clause is parsed independently, so combinators apply per clause: `window button, dialog button` means "buttons under a window *or* buttons under a dialog." Chained `descendant()` / `child()` calls on a group locator distribute over every clause — `locator("toolbar, dialog").descendant("button")` is equivalent to `locator("toolbar button, dialog button")`. Commas inside quoted attribute values (`[name='a,b']`) are not separators.
+**Selector groups (alternation).** A top-level comma separates alternation clauses, just like CSS selector lists. The result is the union of each clause's matches, deduplicated by element identity and returned in document order. Each clause is parsed independently, so combinators apply per clause: `window button, dialog button` means "buttons under a window, plus buttons under a dialog." Chained `descendant()` / `child()` calls on a group locator distribute over every clause, so `locator("toolbar, dialog").descendant("button")` is equivalent to `locator("toolbar button, dialog button")`. Commas inside quoted attribute values (`[name='a,b']`) are not separators.
 
 ## Events
 
@@ -436,7 +436,7 @@ Subscribe to accessibility events from an app with `app.subscribe()`.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">
-    The returned `Subscription` is a pull-based event stream — no filters or selectors, just all events for the app.
+    The returned `Subscription` is a pull-based event stream carrying every event for the app, with no filters or selectors.
 
     ```rust
     let calc = App::by_name("Calculator", Duration::from_secs(5))?;
@@ -511,7 +511,7 @@ Subscribe to accessibility events from an app with `app.subscribe()`.
 
 ## CLI
 
-xa11y ships a command-line tool for exploring accessibility trees, finding elements, performing actions, and streaming events. It mirrors the library API and is useful for debugging tests or inspecting an app before writing code.
+xa11y includes a command-line tool for exploring accessibility trees and driving them from the shell, including actions and live event streams. It mirrors the library API and is useful for debugging tests or inspecting an app before writing code.
 
 Install via Rust or Python:
 

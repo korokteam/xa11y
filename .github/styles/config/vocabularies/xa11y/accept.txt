@@ -1,0 +1,93 @@
+# Terms Vale's dictionary doesn't know but this project uses in prose.
+#
+# Entries are regular expressions. An all-lowercase entry matches
+# case-insensitively, which also makes `Vale.Terms` enforce that lowercase
+# spelling; a word this project writes in both cases is therefore given a
+# character class so neither casing is declared canonical.
+#
+# Keep alphabetical within each group.
+
+# ── Accessibility APIs ──────────────────────────────────────────────
+APIs
+AX[A-Z][A-Za-z]+
+QObject
+UIs
+input_sim
+interactability
+showmenu
+static_text
+subrole
+[Ss]ubtrees?
+
+# ── Platforms, toolkits, and desktop stacks ─────────────────────────
+CGEvent
+Cmd
+GTK
+GUIs
+Hyprland
+JScript
+Qt
+Tauri
+Tcl
+VBScript
+XTest
+XWayland
+Xcode
+Xvfb
+[Bb]idi
+dbus
+eframe
+egui
+evdev
+libei
+libevdev
+tmpfs
+toolkits?
+tooltip
+uinput
+weston
+widget
+winit
+wlroots
+
+# ── Tooling and ecosystem names ─────────────────────────────────────
+Appium
+Docker
+Ranorex
+XCTest
+atomacos
+clippy
+dogtail
+froglogic
+libFuzzer
+maturin
+napi
+pytest
+pywinauto
+serde
+
+# ── Software-writing vocabulary ─────────────────────────────────────
+antialiasing
+combinators?
+compat
+deduplicated
+env
+fuzzers?
+greppable
+[Ii]nteg
+lookups
+memoization
+outer
+renderers
+repo
+runtime
+subprocess
+substring
+surfaceably
+teardown
+tearoff
+typechecks
+uncheck
+unstripped
+upscaled
+viewport

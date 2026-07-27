@@ -1,0 +1,56 @@
+name: Docs Lint
+
+# Prose linting for the root README and the hand-written pages of the docs
+# site. Scoped by path so a Rust-only change doesn't pay for a Vale run, and
+# so a change to the rules or the vocabulary re-lints everything.
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - README.md
+      - "docs/site/src/content/docs/**"
+      - .vale.ini
+      - ".github/styles/config/**"
+      - .github/workflows/docs-lint.yml
+  pull_request:
+    branches: [main, master]
+    paths:
+      - README.md
+      - "docs/site/src/content/docs/**"
+      - .vale.ini
+      - ".github/styles/config/**"
+      - .github/workflows/docs-lint.yml
+
+concurrency:
+  group: docs-lint-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  vale:
+    name: Vale
+    runs-on: ubuntu-latest
+    env:
+      # Pinned so an upstream Vale release can't change what passes without a
+      # commit here. The style package is pinned separately, in .vale.ini.
+      VALE_VERSION: 3.9.1
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Vale
+        run: |
+          set -euo pipefail
+          url="https://github.com/errata-ai/vale/releases/download/v${VALE_VERSION}/vale_${VALE_VERSION}_Linux_64-bit.tar.gz"
+          curl -fsSL "$url" | tar -xz -C /usr/local/bin vale
+          vale --version
+
+      # Fetches the style package named in .vale.ini into .github/styles/.
+      # That directory is gitignored apart from the project vocabulary, so
+      # the rules are downloaded rather than vendored.
+      - name: Sync Vale styles
+        run: vale sync
+
+      - name: Lint README and docs
+        run: vale README.md docs/site/src/content/docs

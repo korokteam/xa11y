@@ -9,23 +9,23 @@ import jsExample from "../../../../../../examples/js/end_to_end.mjs?raw";
 import rustExample from "../../../../../../examples/rust/src/main.rs?raw";
 import cliExample from "../../../../../../examples/cli/end_to_end.sh?raw";
 
-xa11y's Locator pattern makes it natural to write integration tests for desktop apps — find elements, interact with them, wait for changes, and assert on the result. If you've used Playwright for web testing, the workflow is familiar.
+xa11y's Locator pattern makes it natural to write integration tests for desktop apps. Find elements, act on them, wait for the UI to settle, and assert on the result. If you've used Playwright for web testing, the workflow is familiar.
 
 ## Waits
 
 Desktop UIs update asynchronously. After pressing a button, the result might not appear for a few frames. Locator `wait_*()` methods poll until a condition is met or a timeout expires:
 
-- `wait_visible()` / `wait_hidden()` — element appears or disappears
-- `wait_enabled()` / `wait_disabled()` — element becomes interactive or not
-- `wait_attached()` / `wait_detached()` — element exists in the tree or not
-- `wait_focused()` / `wait_unfocused()` — element gains or loses focus
-- `wait_until(predicate)` — arbitrary condition on the resolved element
+- `wait_visible()` / `wait_hidden()` for an element appearing or disappearing
+- `wait_enabled()` / `wait_disabled()` for an element becoming interactive
+- `wait_attached()` / `wait_detached()` for an element entering or leaving the tree
+- `wait_focused()` / `wait_unfocused()` for an element gaining or losing focus
+- `wait_until(predicate)` for an arbitrary condition on the resolved element
 
-Always use waits instead of sleeping — they're faster (resolve as soon as the condition is met) and more reliable (won't flake on slow machines).
+Always use waits instead of sleeping. They resolve as soon as the condition is met, and they won't flake on a slow machine.
 
 ### The default timeout
 
-Auto-waiting action methods (`press()`, `set_value()`, …), the `wait_*()` family, and app lookup (`App.by_name` / `App.by_pid`) all share one process-wide default timeout: **5 seconds**. When that's too tight — cold CI runners are the classic case — raise it once instead of threading `timeout=` through every call site:
+Auto-waiting action methods (`press()`, `set_value()`, …), the `wait_*()` family, and app lookup (`App.by_name` / `App.by_pid`) all share one process-wide default timeout: **5 seconds**. When that's too tight (cold CI runners are the classic case), raise it once instead of threading `timeout=` through every call site:
 
 ```python
 xa11y.set_default_timeout(30.0)        # Python (seconds)
@@ -39,24 +39,24 @@ setDefaultTimeout(30);                 // JavaScript (seconds)
 xa11y::set_default_timeout(Duration::from_secs(30));   // Rust
 ```
 
-Or set the `XA11Y_DEFAULT_TIMEOUT` environment variable (seconds, read once at startup). Resolution order: an explicit per-call `timeout=` always wins, then the programmatic `set_default_timeout()` value, then the environment variable, then the built-in 5 seconds. A timeout of `0` means a single attempt with no polling.
+Or set the `XA11Y_DEFAULT_TIMEOUT` environment variable (seconds, read once at startup). Resolution order runs from most to least specific. An explicit per-call `timeout=` always wins. After that comes the programmatic `set_default_timeout()` value, the environment variable, and finally the built-in 5 seconds. A timeout of `0` means a single attempt with no polling.
 
-Because Locator *actions* (`press()`, `set_value()`, `toggle()`, …) already auto-wait for the target to be visible and enabled, a short `wait_visible()` immediately before an action is redundant — pass a per-call `timeout=` when one step needs a longer window, or raise the default once when the whole suite does.
+Because Locator *actions* (`press()`, `set_value()`, `toggle()`, …) already auto-wait for the target to be visible and enabled, a short `wait_visible()` immediately before an action is redundant. Pass a per-call `timeout=` when one step needs a longer window, or raise the default once when the whole suite does.
 
-The same rule applies to *finding* things: every entry point that can race app startup has a polling form built in, so a hand-rolled `while`/`sleep` loop is never needed. Built-in polling also releases the host language's runtime lock while it waits (Python threads keep running during a 60s `wait_visible`) and produces a structured diagnosis on timeout — what it waited for, what it last observed, and near-miss candidates (see [Errors & Diagnosis](/guides/errors/)). A manual loop gets none of that.
+The same rule applies to *finding* things: every entry point that can race app startup has a polling form built in, so a hand-rolled `while`/`sleep` loop is never needed. Built-in polling also releases the host language's runtime lock while it waits (Python threads keep running during a 60s `wait_visible`) and produces a structured diagnosis on timeout, covering what it waited for, what it last observed, and near-miss candidates (see [Errors & Diagnosis](/guides/errors/)). A manual loop gets none of that.
 
 ## Attaching to the app under test
 
-The usual test flow is: launch the app as a subprocess, then attach by PID — `App.by_pid` polls until the OS registers the process with the accessibility API:
+The usual test flow launches the app as a subprocess, then attaches by PID. `App.by_pid` polls until the OS registers the process with the accessibility API:
 
 ```python
 proc = subprocess.Popen([app_path])
 app = xa11y.App.by_pid(proc.pid, timeout=60.0)
 ```
 
-Two situations need more than a PID:
+A PID is not always enough on its own.
 
-- **The UI registers as more than one accessibility app.** Some toolkits register top-level windows as *separate* accessibility applications sharing the host PID — on Windows UIA, a Qt dialog can appear as its own app rather than under the main window's tree (see [Accessibility API Quirks](/guides/accessibility-quirks/)). Match it with a predicate instead of polling `App.list()` by hand:
+- **The UI may register as more than one accessibility app.** Some toolkits register top-level windows as *separate* accessibility applications sharing the host PID. On Windows UIA, a Qt dialog can appear as its own app rather than under the main window's tree (see [Accessibility API Quirks](/guides/accessibility-quirks/)). Match it with a predicate instead of polling `App.list()` by hand:
 
   ```python
   dialog_app = xa11y.App.find(
@@ -65,7 +65,7 @@ Two situations need more than a PID:
   )
   ```
 
-- **The element belongs to an app you can't predict.** Message boxes and system popups are sometimes hosted by a different app than the one showing them. A locator created with the module-level `xa11y.locator()` searches from the system root — every running app — so you can wait for the popup without knowing its owner:
+- **The element belongs to an app you can't predict.** Message boxes and system popups are sometimes hosted by a different app than the one showing them. A locator created with the module-level `xa11y.locator()` searches from the system root, across every running app, so you can wait for the popup without knowing its owner:
 
   ```python
   popup_text = xa11y.locator("static_text[name^='Saved the submission']")
@@ -174,17 +174,17 @@ This test opens Calculator, performs `7 × 8`, and asserts the result is `56`.
 
 ## Full runnable example
 
-The repo ships an end-to-end example for each binding that drives the in-tree
+The repo carries an end-to-end example for each binding that drives the in-tree
 AccessKit test app (`test-apps/accesskit`) from launch to teardown. CI runs
 all four files on Linux against the AccessKit test app, so they can't rot.
-(The library itself ships on macOS and Windows too — separate Rust
-integration tests cover those platforms; the published examples just lock in
-their Linux behavior automatically.)
+(The library supports macOS and Windows too. Separate Rust integration tests
+cover those platforms, and the published examples lock in their Linux
+behavior automatically.)
 
-Each file covers the same flow: launch a subprocess, poll the accessibility
-API until the OS registers it, dump the tree to discover selectors, exercise
-the locator + wait + action surface, subscribe to events, and tear the
-subprocess down cleanly.
+Each file covers the same flow. It launches a subprocess and polls the
+accessibility API until the OS registers it. It dumps the tree to discover
+selectors, exercises the locator, wait, and action surface, subscribes to
+events, then tears the subprocess down cleanly.
 
 To run from a fresh checkout:
 
@@ -238,7 +238,7 @@ See the [Overview](/guides/overview/#cli) for the full CLI reference.
 
 ## Tips
 
-- **Be specific with selectors.** `button[name='7']` is better than `button` — it won't break when the UI adds more buttons.
+- **Be specific with selectors.** `button[name='7']` is better than `button`, because it won't break when the UI adds more buttons.
 - **Use locators, not elements, for interactions.** Locators re-resolve their selector on every operation, making them resilient to UI changes.
-- **Prefer `wait_until` for complex assertions.** Instead of sleeping then asserting, combine the wait and the condition — the test passes as soon as the UI is ready.
-- **Keep timeouts generous in CI.** CI machines are slower. Use 5–10 seconds for waits even if your local machine resolves in milliseconds — or raise the process-wide default once with `set_default_timeout()` / `XA11Y_DEFAULT_TIMEOUT` instead of touching every call site.
+- **Prefer `wait_until` for complex assertions.** Combine the wait and the condition instead of sleeping then asserting, and the test passes as soon as the UI is ready.
+- **Keep timeouts generous in CI.** CI machines are slower. Use 5 to 10 seconds for waits even if your local machine resolves in milliseconds, or raise the process-wide default once with `set_default_timeout()` / `XA11Y_DEFAULT_TIMEOUT` instead of touching every call site.

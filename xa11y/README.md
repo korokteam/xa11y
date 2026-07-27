@@ -42,15 +42,15 @@ fn main() -> Result<()> {
 xa11y = "0.4"
 ```
 
-> **macOS:** Grant your terminal **two** permissions in **System Settings > Privacy & Security**:
-> 1. **Accessibility** — required for all accessibility API access.
-> 2. **Screen & System Audio Recording** (macOS 26+) — required to read window content. Without this, only menu bars are visible.
+> On **macOS**, grant your terminal **two** permissions in **System Settings > Privacy & Security**:
+> 1. **Accessibility**, required for all accessibility API access.
+> 2. **Screen & System Audio Recording** (macOS 26+), required to read window content. Without it, only menu bars are visible.
 >
 > Restart your terminal after changing permissions.
 >
-> **Linux:** AT-SPI2 must be running (default on GNOME/most DEs). No special permissions needed.
+> On **Linux**, AT-SPI2 must be running (the default on GNOME and most desktop environments). Nothing else to grant.
 >
-> **Windows:** No special permissions needed.
+> **Windows** works as installed.
 
 ## Selector Syntax
 

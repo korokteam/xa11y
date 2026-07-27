@@ -217,7 +217,8 @@ CI runs with `RUSTFLAGS: -Dwarnings`, so all warnings are errors. Individual che
 3. **Unit tests** — `cargo xtask test`
 4. **Integration tests** (if touching provider/test-app code) — `cargo xtask test-integ`
 5. **Python bindings** — `cargo xtask test-python`
-6. **No new `#[allow(...)]` without justification** — if you must suppress a warning, add a comment explaining why
+6. **Docs prose** (if touching `README.md` or `docs/site/src/content/docs/`) — `cargo xtask lint-docs`
+7. **No new `#[allow(...)]` without justification** — if you must suppress a warning, add a comment explaining why
 
 Common CI failures:
 - `unused import` / `dead_code` — remove the unused code or add `#[allow(dead_code)]` with a reason
@@ -251,10 +252,45 @@ cargo xtask fuzz                              # provider fuzzer
 cargo xtask fuzz --seed 42 -n 5000            # reproducible fuzz run
 cargo xtask coverage                          # code coverage report
 cargo xtask docs                              # build documentation
+cargo xtask lint-docs                         # Vale prose lint for README + docs site
 
 # Core fuzz tests (requires nightly)
 cd xa11y/fuzz && cargo +nightly fuzz run tree_ops -- -max_total_time=60
 ```
+
+## Docs Prose Linting
+
+`README.md` and the hand-written pages under `docs/site/src/content/docs/` are
+linted with [Vale](https://vale.sh). `cargo xtask lint-docs` runs it locally;
+the `Docs Lint` workflow runs it in CI whenever one of those files, `.vale.ini`,
+or the project vocabulary changes.
+
+Two style sets are configured in `.vale.ini`:
+
+- **`Vale`** — the built-in style that ships with the binary (spelling,
+  repetition).
+- **[`ai-tells`](https://github.com/tbhb/vale-ai-tells)** — flags the prose
+  patterns that read as machine-written: em-dash asides, three-item verb
+  series, "not X but Y" contrasts, hedges, filler adverbs. The release is
+  pinned in `.vale.ini` so an upstream rule addition cannot turn CI red
+  without a commit here.
+
+`vale sync` downloads the style package into `.github/styles/`, which is
+gitignored apart from `config/vocabularies/xa11y/accept.txt`. That file is the
+project's term list: everything Vale's dictionary doesn't know but this
+codebase writes in prose (`AXUIElement`, `uinput`, `pywinauto`, `subrole`, and
+so on). Add a term there rather than rewording around the spell checker.
+
+Two things worth knowing before adding pages:
+
+- **Frontmatter is linted**, minus the keys themselves. `description` is the
+  page's meta description, so it gets the same treatment as body prose. A
+  frontmatter key not listed in the `TokenIgnores` line shows up as a colon
+  alert, which is the cue to add it.
+- **A fenced code block indented inside a JSX element** (every `<TabItem>` in
+  these guides) is not recognised as a fence by Vale's Markdown parser, so
+  `.vale.ini` skips those blocks explicitly. Top-level fences are handled by
+  the parser.
 
 ## Project Structure
 

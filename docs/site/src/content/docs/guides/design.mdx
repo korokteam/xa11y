@@ -3,30 +3,30 @@ title: Architecture & Design
 description: Internal architecture, design tenets, and testing strategy for xa11y.
 ---
 
-This page is for contributors and for consumers who want a clearer picture of what xa11y is built on, how design decisions are made, and how the library is hardened. If you are looking for usage docs, start at the [Overview](/guides/overview/). For how the library is verified — the test suites, the toolkit fleet, and CI — see [How xa11y Is Tested](/guides/testing/).
+This page is for contributors and for consumers who want a clearer picture of what xa11y is built on, how design decisions are made, and how the library is hardened. If you are looking for usage docs, start at the [Overview](/guides/overview/). For how the library is verified (the test suites, the toolkit fleet, and CI), see [How xa11y Is Tested](/guides/testing/).
 
 ## Architecture at a glance
 
-xa11y is a Rust workspace organised into a platform-independent core, three platform backends, and language bindings.
+xa11y is a Rust workspace with a platform-independent core, three platform backends, and the language bindings on top of them.
 
-- **`xa11y-core`** — platform-independent types, traits, and the selector engine. Anything that does not need OS-specific FFI lives here.
-- **`xa11y-linux`** — AT-SPI2 backend over `zbus`, plus a `libxkbcommon` + `uinput` input backend.
-- **`xa11y-macos`** — `AXUIElement` backend with an ObjC exception-safety layer (`exception_safe.m`).
-- **`xa11y-windows`** — UI Automation backend.
-- **`xa11y`** — umbrella crate that picks the right backend at compile time and exposes the public Rust API.
-- **`xa11y-python`** (PyO3 / maturin) and **`xa11y-js`** (napi-rs) — language bindings layered on top of the umbrella crate.
+- **`xa11y-core`** holds platform-independent types, traits, and the selector engine. Anything that does not need OS-specific FFI lives here.
+- **`xa11y-linux`** is the AT-SPI2 backend over `zbus`, plus a `libxkbcommon` + `uinput` input backend.
+- **`xa11y-macos`** is the `AXUIElement` backend with an ObjC exception-safety layer (`exception_safe.m`).
+- **`xa11y-windows`** is the UI Automation backend.
+- **`xa11y`** is the umbrella crate that picks the right backend at compile time and exposes the public Rust API.
+- **`xa11y-python`** (PyO3 / maturin) and **`xa11y-js`** (napi-rs) are the language bindings layered on top of the umbrella crate.
 
-The public surface — `App`, `Element`, `Locator`, `Subscription`, `Selector` — is platform-agnostic. Each backend implements a small set of provider traits, and `xa11y-core` is responsible for everything that *can* be cross-platform: the selector parser, the locator engine, retry/wait loops, error mapping, and screenshot encoding.
+The public surface (`App`, `Element`, `Locator`, `Subscription`, `Selector`) is platform-agnostic. Each backend fills in a small set of provider traits, and `xa11y-core` is responsible for everything that *can* be cross-platform: the selector parser, the locator engine, retry/wait loops, error mapping, and screenshot encoding.
 
-Actions (`press`, `set_value`, `type_text`, …) are exposed on both `Locator` and `Element`. `Locator` is the auto-waiting wrapper: it re-resolves its selector and waits for visible+enabled before dispatching. `Element` calls go straight through to the provider handle captured at fetch time — no re-resolution, no wait — and surface `ElementStale` if the handle is gone. Both shapes share a single underlying provider call, so action fidelity (tenet 3) is enforced in one place.
+Actions (`press`, `set_value`, `type_text`, …) are exposed on both `Locator` and `Element`. `Locator` is the auto-waiting wrapper: it re-resolves its selector and waits for visible+enabled before dispatching. `Element` calls go straight through to the provider handle captured at fetch time, skipping re-resolution and the wait, and surface `ElementStale` if the handle is gone. Both shapes share a single underlying provider call, so action fidelity (tenet 3) is enforced in one place.
 
 ## Design tenets
 
-These four tenets are the firm defaults for every new piece of provider or binding code. They are restated verbatim in `CLAUDE.md` so reviewers and AI agents apply them consistently.
+The tenets below are the firm defaults for every new piece of provider or binding code. They are restated verbatim in `CLAUDE.md` so reviewers and AI agents apply them consistently.
 
 ### 1. No silent fallbacks
 
-If an operation fails, return the error — don't silently try a different mechanism. Fallbacks hide bugs and make behaviour unpredictable for consumers. Surface failures clearly so callers can handle them.
+If an operation fails, return the error rather than silently trying a different mechanism. Fallbacks hide bugs and make behaviour unpredictable for consumers. Surface failures clearly so callers can handle them.
 
 Anti-patterns this rules out:
 
@@ -35,32 +35,32 @@ Anti-patterns this rules out:
 - `if let Ok(x) = ... { ... }` that treats a real error as "no match".
 - Try-A-then-B-then-C fallback chains where each step hides the original failure.
 
-If multiple mechanisms genuinely need to be tried, do it explicitly with logged reasoning, not silent fall-through.
+If multiple mechanisms really do need to be tried, do it explicitly with logged reasoning, not silent fall-through.
 
 ### 2. Only expose what accessibility APIs support
 
-If a platform has no accessibility interface for an operation, don't paper over it with input simulation — leave the action out of the element's `actions` list. Input simulation lives in its own surface (`InputSim`) and is never reached from `locator.press()` automatically.
+If a platform has no accessibility interface for an operation, don't paper over it with input simulation. Leave the action out of the element's `actions` list. Input simulation lives in its own surface (`InputSim`) and is never reached from `locator.press()` automatically.
 
 ### 3. Action fidelity
 
-If an element advertises an action name in its `actions` list, calling that action must invoke the original platform action — not a substitute. The verbs `press`, `toggle`, `focus`, `select`, `expand`, `collapse` are *semantic* and may legitimately dispatch to different platform APIs (e.g. `press` on Windows can resolve to UIA Invoke, Toggle, SelectionItem.Select, or ExpandCollapse based on the element's primary-activation pattern). What is forbidden is advertising one verb and calling something that does not implement it semantically (e.g. simulating a click instead of invoking the API).
+If an element advertises an action name in its `actions` list, calling that action must invoke the original platform action, never a substitute. The verbs `press`, `toggle`, `focus`, `select`, `expand`, `collapse` are *semantic* and may legitimately dispatch to different platform APIs (e.g. `press` on Windows can resolve to UIA Invoke, Toggle, SelectionItem.Select, or ExpandCollapse based on the element's primary-activation pattern). What is forbidden is advertising one verb and calling something that does not carry out its semantics (e.g. simulating a click instead of calling the API).
 
 ### 4. Fail surfaceably, not fatally
 
 Prefer `Result` over `.unwrap()` / `.expect()` in provider and binding code.
 
-- **Locks**: `.lock().unwrap()` on caches becomes `.lock().unwrap_or_else(|e| e.into_inner())` — poisoning in a memoization cache is recoverable.
+- **Locks**: `.lock().unwrap()` on caches becomes `.lock().unwrap_or_else(|e| e.into_inner())`, because poisoning in a memoization cache is recoverable.
 - **Platform FFI returns**: never `.unwrap()` a CF / AX / UIA / AT-SPI2 return. Map to `Error::Platform`.
 - **Tests** may use `.expect("...")` with a descriptive message when the failure indicates a broken fixture.
 - Any new `.unwrap()` must have an invariant one line above that proves it can't panic.
 
 ### Breaking a tenet
 
-These are firm defaults, not absolutes. Genuine exceptions:
+These are firm defaults. A real exception has to clear three bars:
 
-1. Need explicit human approval — agents must pause and ask.
-2. Are documented at the call site with a `// TENET-BREAK(<N>):` comment explaining why the break is justified and what the alternative would cost.
-3. Are greppable (`rg 'TENET-BREAK'`), so the full set of exceptions stays visible and reviewable.
+1. It needs explicit human approval, so agents must pause and ask.
+2. It is documented at the call site with a `// TENET-BREAK(<N>):` comment explaining why the break is justified and what the alternative would cost.
+3. It is greppable (`rg 'TENET-BREAK'`), so the full set of exceptions stays visible and reviewable.
 
 ## Testing strategy
 
@@ -68,23 +68,23 @@ The testing philosophy has two pillars: **integration tests against real, live a
 
 ### Layers
 
-- **Unit tests** (`cargo xtask test`) — selector parsing, locator/wait loops, error mapping, and per-backend logic that doesn't need a live AX tree. Run on every push on Linux, macOS, and Windows.
-- **Rust core integration suite** (`xa11y/tests/integ/`, run via `cargo xtask test-integ`) — the fast-path validation suite for the core API surface. All tests are `#[ignore]` and target the AccessKit + winit test app. Event subscription is split per-platform (`events_linux.rs`, `events_macos.rs`, `events_windows.rs`).
-- **Per-app compatibility suites** (`tests/<framework>/`) — Python integration tests that drive each major UI framework end-to-end through xa11y. They confirm that real-world AX trees, roles, and actions behave correctly with frameworks other than AccessKit. JS suites add a partial second-binding check.
-- **Fuzz targets** (`xa11y/fuzz/` for libFuzzer; `xa11y-fuzz/` for live-app stress) — randomised stress over the public API, the selector engine, tree operations, and serde round-trips.
-- **Linux Wayland uinput e2e** — drives `LinuxInputProvider` through its public API on the runner and reads events back via `libevdev`, verifying wire-level codes/values for the input-simulation surface.
+- **Unit tests** (`cargo xtask test`) cover selector parsing, locator/wait loops, error mapping, and per-backend logic that doesn't need a live AX tree. Run on every push on Linux, macOS, and Windows.
+- **Rust core integration suite** (`xa11y/tests/integ/`, run via `cargo xtask test-integ`) is the fast-path validation suite for the core API surface. All tests are `#[ignore]` and target the AccessKit + winit test app. Event subscription is split per-platform (`events_linux.rs`, `events_macos.rs`, `events_windows.rs`).
+- **Per-app compatibility suites** (`tests/<framework>/`) are Python integration tests that drive each major UI framework end-to-end through xa11y. They confirm that real-world AX trees, roles, and actions behave correctly with frameworks other than AccessKit. JS suites add a partial second-binding check.
+- **Fuzz targets** (`xa11y/fuzz/` for libFuzzer; `xa11y-fuzz/` for live-app stress) put randomised stress on the public API, the selector engine, tree operations, and serde round-trips.
+- **Linux Wayland uinput e2e** drives `LinuxInputProvider` through its public API on the runner and reads events back via `libevdev`, verifying wire-level codes/values for the input-simulation surface.
 
 ### Cross-cutting choices
 
-- **Live targets only** — every integration test runs against a real running application, never a recorded fixture. Live tests catch backend bugs that recorded ones miss.
+- **Live targets only.** Every integration test runs against a real running application, never a recorded fixture. Live tests catch backend bugs that recorded ones miss.
 - **One coverage vehicle per concern.** Input simulation and screenshot capture exercise platform input/screenshot APIs, not AX-framework compatibility, so they are tested *once per platform* (against the Tauri app, which runs on all three) rather than against every framework.
 - **Test-app-first.** When an integration test needs a widget the test app doesn't expose, the test app gets the widget *before* the test is added. This keeps tests deterministic and prevents the suite from drifting away from a stable target surface.
-- **Coverage matrix as a CI gate.** `tests/matrix.yaml` is machine-readable; `tests/matrix_check.py` runs in CI and fails the build when a row drifts away from what's documented. Gaps must be declared, not silently introduced.
+- **Coverage matrix as a CI gate.** `tests/matrix.yaml` is machine-readable. `tests/matrix_check.py` runs in CI and fails the build when a row drifts away from what's documented. Gaps must be declared, not silently introduced.
 - **Bindings parity check.** `cargo xtask check-bindings-parity` keeps the Rust, Python, and JS public surfaces aligned so a feature added to one binding cannot quietly miss the others.
 
 ### Test-suite map
 
-The matrix below summarises which apps are exercised on which platforms and what each suite covers. `compat` = tree structure and widget discovery; `actions` = press/toggle/focus/type/expand-collapse; `events` = subscription and state-change detection; `input_sim` and `screenshot` = the platform-input and screenshot surfaces.
+The matrix below summarises which apps are exercised on which platforms and what each suite covers. `compat` = tree structure and widget discovery. `actions` = press/toggle/focus/type/expand-collapse. `events` = subscription and state-change detection. `input_sim` and `screenshot` = the platform-input and screenshot surfaces.
 
 | Test app    | Frameworks tested            | Platforms in CI       | Suites that target it      | Features covered                         |
 |-------------|------------------------------|-----------------------|----------------------------|------------------------------------------|
@@ -99,13 +99,13 @@ The matrix below summarises which apps are exercised on which platforms and what
 
 ### CI matrix
 
-CI runs every push and pull request, with `RUSTFLAGS: -Dwarnings` so warnings fail the build. The notable jobs:
+CI runs every push and pull request, with `RUSTFLAGS: -Dwarnings` so warnings fail the build. The main jobs:
 
 | Job                     | Runner            | What it does                                                            |
 |-------------------------|-------------------|-------------------------------------------------------------------------|
 | Linux                   | `ubuntu-latest`   | Workspace unit tests + AccessKit Rust integ suite under Xvfb + dbus.    |
 | Linux Wayland (uinput)  | `ubuntu-latest`   | uinput e2e for the Wayland input backend; reads back via libevdev.      |
-| macOS                   | `macos-latest`    | Workspace unit tests. (TCC-bound integ tests run locally; see below.)   |
+| macOS                   | `macos-latest`    | Workspace unit tests. (TCC-bound integ tests run locally. See below.)   |
 | Windows                 | `windows-latest`  | Workspace unit tests + AccessKit Rust integ suite via UIA.              |
 | Integ (per app × OS)    | matrix            | One app × one OS × Python+JS+CLI suites via `tests/harness/launch.py`.  |
 | Lint & Format           | `ubuntu-latest`   | `cargo fmt`, `clippy -Dwarnings`, README sync, bindings parity, matrix check. |
@@ -120,7 +120,7 @@ macOS Rust integ tests for the AccessKit app are not wired into CI: they require
 
 ### Pre-PR checklist
 
-Before opening a PR, run `cargo xtask check`. It chains formatting (`fmt --check`), lint (clippy + ruff + Python Rust check), unit tests, and Python bindings. For provider or test-app changes, also run `cargo xtask test-integ`. The same checks run in CI; fixing them locally first keeps review tight.
+Before opening a PR, run `cargo xtask check`. It chains formatting (`fmt --check`), lint (clippy + ruff + Python Rust check), unit tests, and Python bindings. For provider or test-app changes, also run `cargo xtask test-integ`. The same checks run in CI, so fixing them locally first keeps review tight.
 
 ## Platform notes
 
@@ -130,7 +130,7 @@ All raw CoreFoundation / AX FFI calls in `xa11y-macos/src/ax.rs` go through wrap
 
 ### Linux: input subsystem
 
-Wayland input simulation goes through `uinput`. The Wayland uinput e2e tests run *directly on the runner* rather than in a container — Docker's `/dev` tmpfs isolation hides the udev-minted `/dev/input/eventN` node for the virtual device, even with `--device /dev/uinput` and a bind mount. The container path is still useful for non-Linux developer hosts.
+Wayland input simulation goes through `uinput`. The Wayland uinput e2e tests run *directly on the runner* rather than in a container, because Docker's `/dev` tmpfs isolation hides the udev-minted `/dev/input/eventN` node for the virtual device, even with `--device /dev/uinput` and a bind mount. The container path is still useful for non-Linux developer hosts.
 
 ### Windows: UI Automation
 

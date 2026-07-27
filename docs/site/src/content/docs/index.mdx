@@ -5,7 +5,7 @@ template: splash
 hero:
   tagline: A unified API for accessibility trees across macOS, Windows, and Linux. Test desktop apps, power AI agents, or build assistive tools.
   image:
-    html: '<img src="/hero.svg" alt="Animated demo showing xa11y querying a Slack accessibility tree, pressing buttons, typing text, and running assertions" width="600" height="520" />'
+    html: '<img src="/hero.svg" alt="Animated demo of xa11y querying a Slack accessibility tree, then pressing buttons and typing text, then running assertions" width="600" height="520" />'
   actions:
     - text: Get Started
       link: /guides/quick-start/
@@ -20,11 +20,11 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
 
 <CardGrid stagger>
   <Card title="Read the tree" icon="open-book">
-    Lazy, live navigation of the accessibility tree. CSS-like selectors
-    — `button[name='Submit']`, `textfield[name^='Search']`, `group > button`.
+    Lazy, live navigation of the accessibility tree. CSS-like selectors:
+    `button[name='Submit']`, `textfield[name^='Search']`, `group > button`.
   </Card>
   <Card title="Drive the UI" icon="rocket">
-    Invoke accessibility actions directly — `press`, `toggle`, `type_text`,
+    Invoke accessibility actions directly: `press`, `toggle`, `type_text`,
     `set_value`. Plus a separate `InputSim` for drag-and-drop, scroll wheels,
     and global shortcuts.
   </Card>
@@ -37,8 +37,8 @@ import { Card, CardGrid } from "@astrojs/starlight/components";
     (AT-SPI2). Write once, query anywhere.
   </Card>
   <Card title="Proven, not vibes" icon="approve-check">
-    700+ automated tests run against real GUI toolkits — Qt, GTK, Cocoa,
-    Tauri, Electron, egui, Windows Forms, WPF — on Linux, macOS, and Windows. See
+    700+ automated tests run against real GUI toolkits (Qt, GTK, Cocoa,
+    Tauri, Electron, egui, Windows Forms, WPF) on Linux, macOS, and Windows. See
     [How xa11y Is Tested](/guides/testing/).
   </Card>
 </CardGrid>

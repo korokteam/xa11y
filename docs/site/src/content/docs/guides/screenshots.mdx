@@ -1,19 +1,19 @@
 ---
 title: Screenshots
-description: Capture the screen, a region, or the pixels under an accessibility element.
+description: Capture the screen, a region, or the pixels behind any accessibility element.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components";
 
 xa11y can capture pixel-level snapshots of the screen alongside its accessibility APIs. This is useful for attaching screenshots to test failures, feeding vision-language models with the same frame the agent is reasoning about, or visually diffing a region around a specific control.
 
-Three entry points:
+The entry points are:
 
-- **Full screen** — capture the entire primary display.
-- **Region** — capture an explicit rectangle in logical screen coordinates.
-- **Element** — capture the pixels under an accessibility element's current bounds.
+- **Full screen** captures the entire primary display.
+- **Region** captures an explicit rectangle in logical screen coordinates.
+- **Element** captures the pixels under an accessibility element's current bounds.
 
-Screenshots are decoupled from the accessibility and input layers. The target window is **not** raised or activated before capture — whatever pixels are at the requested coordinates are returned, including any occluding windows. Bring the target to the foreground yourself if you need a clean capture.
+Screenshots are decoupled from the accessibility and input layers. Capture never raises or activates the target window. Whatever pixels sit at the requested coordinates are returned, including any occluding windows. Bring the target to the foreground yourself if you need a clean capture.
 
 ## Permissions
 
@@ -96,7 +96,7 @@ Screenshots are decoupled from the accessibility and input layers. The target wi
 
 ## Working with the pixel buffer
 
-A `Screenshot` carries raw RGBA8 pixels along with dimensions and a scale factor. `width` and `height` are **physical** (device) pixels — the same resolution the compositor renders at — so on HiDPI displays they exceed the logical bounds passed in. `scale` records the physical-to-logical ratio (1.0 on standard displays, 2.0 on typical Retina, 1.5 / 1.75 / 2.0 on common Windows and Linux HiDPI configurations). `pixels.len()` equals `width * height * 4`.
+A `Screenshot` carries raw RGBA8 pixels along with dimensions and a scale factor. `width` and `height` are **physical** (device) pixels, the same resolution the compositor renders at, so on HiDPI displays they exceed the logical bounds passed in. `scale` records the physical-to-logical ratio (1.0 on standard displays, 2.0 on typical Retina, 1.5 / 1.75 / 2.0 on common Windows and Linux HiDPI configurations). `pixels.len()` equals `width * height * 4`.
 
 <Tabs syncKey="lang">
   <TabItem label="Rust">

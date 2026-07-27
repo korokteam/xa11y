@@ -1,13 +1,13 @@
 ---
 title: How xa11y Is Tested
-description: The xa11y test suite — 700+ automated tests run against real GUI toolkits on Linux, macOS, and Windows, plus fuzzing and a set of enforced correctness tenets.
+description: The xa11y test suite, with 700+ automated tests run against real GUI toolkits on Linux, macOS, and Windows, plus fuzzing and a set of enforced correctness tenets.
 ---
 
 xa11y drives the *real* accessibility tree of a running application. There is
 no way to mock that meaningfully, so the library is verified the same way it is
-used: by launching real GUI apps built on real toolkits and asserting against
-the trees their platform accessibility APIs actually expose. This page is a map
-of that test suite — what runs, against what, and where.
+used. Real GUI apps built on real toolkits are launched, and the tests assert
+against the trees their platform accessibility APIs actually expose. This page
+maps that test suite: what runs, and against what.
 
 If you are deciding whether to depend on xa11y, this is the page that answers
 "how do I know it works?"
@@ -21,21 +21,21 @@ JavaScript, and the CLI. Roughly:
 | --- | --- | --- | --- |
 | Rust unit | ~60 | `xa11y/tests/unit_test.rs` | Selector engine, locators, roles, state sets, error mapping, serialization (against an in-memory mock provider) |
 | Rust integration | ~150 | `xa11y/tests/integ/` | Live tree reads, action dispatch, events, screenshots against a running app |
-| Python binding unit | ~240 | `xa11y-python/tests/` | The PyO3 surface — types, actions, exceptions, GIL release, subscriptions |
+| Python binding unit | ~240 | `xa11y-python/tests/` | The PyO3 surface: types, actions, exceptions, GIL release, subscriptions |
 | Python integration | ~100 | `tests/suites/python/` | Per-app compat, actions, events, errors, input simulation, screenshots |
 | CLI integration | ~30 | `tests/suites/cli/` | The `xa11y` CLI end-to-end against running apps |
 | JavaScript unit | ~115 | `xa11y-js/__test__/unit/` | The napi-rs binding surface |
 | JavaScript integration | ~40 | `tests/suites/js/` | Per-app compat, actions, input simulation, screenshots |
 
-Counts are approximate and grow over time; the figures above are meant to
-convey shape, not a frozen total. The authoritative coverage index — which app
-is tested in which language for which feature — lives in
+Counts are approximate and grow over time, so read the figures above as a rough
+shape. The authoritative coverage index, recording which app is tested in which
+language for which feature, lives in
 [`tests/matrix.yaml`](https://github.com/xa11y/xa11y/blob/main/tests/matrix.yaml).
 
 ## Tested against real toolkits, not stubs
 
 The integration suites run against a fleet of small test apps, each built on a
-genuinely different GUI toolkit, and each launched as a real process whose
+different GUI toolkit, and each launched as a real process whose
 accessibility tree xa11y reads through the platform API. This is the part that
 matters: a passing test means xa11y handled a real AT-SPI2, AXUIElement, or
 UI Automation tree, not a fixture shaped to match the code.
@@ -44,31 +44,33 @@ UI Automation tree, not a fixture shaped to match the code.
 | --- | --- | :---: | :---: | :---: |
 | `accesskit` | Rust + winit (AccessKit) | ✓ | ✓ | ✓ |
 | `qt` | PySide6 (Qt) | ✓ | ✓ | ✓ |
-| `gtk` | GTK4 (PyGObject) | ✓ | — | — |
-| `cocoa` | Swift / AppKit | — | ✓ | — |
+| `gtk` | GTK4 (PyGObject) | ✓ | ○ | ○ |
+| `cocoa` | Swift / AppKit | ○ | ✓ | ○ |
 | `tauri` | Rust + WebView | ✓ | ✓ | ✓ |
-| `electron` | Chromium / Node | ✓ | — | — |
+| `electron` | Chromium / Node | ✓ | ○ | ○ |
 | `egui` | Rust immediate-mode (eframe) | ✓ | ✓ | ✓ |
-| `winforms` | .NET Windows Forms | — | — | ✓ |
-| `wpf` | .NET WPF | — | — | ✓ |
+| `winforms` | .NET Windows Forms | ○ | ○ | ✓ |
+| `wpf` | .NET WPF | ○ | ○ | ✓ |
+
+A hollow circle means the combination is not run in CI.
 
 Across those rows, xa11y is exercised against all three platform accessibility
-backends — **AT-SPI2** on Linux, **AXUIElement** on macOS, and **UI
-Automation** on Windows — and against toolkits that report their trees in
-meaningfully different ways (retained-mode native widgets, immediate-mode
-GUIs, two distinct web renderers, and — with Windows Forms and WPF — two
-first-party Microsoft UIA providers rather than third-party bridges). The
+backends (**AT-SPI2** on Linux, **AXUIElement** on macOS, **UI Automation** on
+Windows) and against toolkits that report their trees in meaningfully different
+ways: retained-mode native widgets, immediate-mode GUIs, two distinct web
+renderers, and two first-party Microsoft UIA providers rather than third-party
+bridges, by way of Windows Forms and WPF. The
 toolkit-specific quirks this surfaces are documented in
 [Accessibility Quirks](/guides/accessibility-quirks/).
 
 ## One suite, every binding
 
 The per-app integration tests aren't duplicated per language. Python, JavaScript,
-and the CLI run the *same* feature suites — compat, actions, events, errors,
-input simulation, screenshots — against the *same* running app, driven by a
-shared harness (`tests/harness/launch.py`). That means binding parity isn't
-asserted by hand; it's proven by every binding passing identical scenarios
-against an identical target.
+and the CLI run the *same* feature suites (compat, actions, events, errors,
+input simulation, screenshots) against the *same* running app, driven by a
+shared harness (`tests/harness/launch.py`). Binding parity is proven by every
+binding passing identical scenarios against an identical target, rather than
+asserted by hand.
 
 ## The CI matrix
 
@@ -94,7 +96,7 @@ the provider interface against a running app with randomized action sequences.
 ## Correctness is a stated discipline
 
 The breadth above is backed by a small set of firm engineering tenets that
-every new piece of provider or binding code is held to — **no silent
+every new piece of provider or binding code is held to: **no silent
 fallbacks**, **action fidelity** (an advertised action invokes the real
 platform action, never a substitute), **errors that carry their own
 diagnosis**, and **blocking calls that release the host runtime's lock**. These
@@ -107,9 +109,9 @@ identically.
 
 The test-app fleet is deliberately chosen so that each app covers an
 accessibility surface the others don't. If you work with a common UI framework
-that's **meaningfully different** from everything in the table above — a
-different accessibility implementation, a renderer family not yet represented,
-a platform combination we don't exercise — that's a coverage gap worth closing.
+that's **meaningfully different** from everything in the table above, that's a
+coverage gap worth closing. A different accessibility backend, a renderer family
+not yet represented, or a platform combination we don't exercise all qualify.
 Please [open an issue](https://github.com/xa11y/xa11y/issues/new) describing the
-framework and how its accessibility tree differs; new test-app coverage is very
+framework and how its accessibility tree differs. New test-app coverage is very
 welcome.

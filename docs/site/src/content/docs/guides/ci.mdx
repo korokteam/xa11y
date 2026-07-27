@@ -1,41 +1,41 @@
 ---
 title: Testing in CI
-description: Run xa11y accessibility tests in CI across Linux, macOS, and Windows — a ready-made GitHub Actions setup plus the CI-agnostic steps it automates.
+description: Run xa11y accessibility tests in CI across Linux, macOS, and Windows, with a ready-made GitHub Actions setup plus the CI-agnostic steps it automates.
 ---
 
 xa11y drives the *real* accessibility tree of a running application, so the
-hard part of CI isn't xa11y — it's standing up an environment where an
+hard part of CI isn't xa11y. It's standing up an environment where an
 accessibility API is actually available. A bare CI runner usually has no
 display, no accessibility bus, and (on macOS) no permission to read other
 apps' trees. This guide covers what each platform needs.
 
-The requirements themselves — a display, a D-Bus session, the AT-SPI bridge,
-the macOS Accessibility permission — are **generic to any CI system** (GitLab
+The requirements themselves (a display, a D-Bus session, the AT-SPI bridge,
+the macOS Accessibility permission) are **generic to any CI system** (GitLab
 CI, CircleCI, Jenkins, a plain container, or your laptop). Only the
 [`setup-a11y` composite action](#the-setup-a11y-action-github-actions) and the
-YAML snippets are **GitHub Actions–specific**: they're a convenience wrapper
+YAML snippets are **specific to GitHub Actions**: they're a convenience wrapper
 so you don't have to wire the generic steps up by hand. If you're not on
 GitHub Actions, skip to [Doing it without the
 action](#doing-it-without-the-action-any-ci) for the same setup as plain
 shell commands.
 
 The examples below run tests with `pytest`, but xa11y exposes the same API
-from Python, JavaScript, Rust, and the `xa11y` CLI — substitute whichever test
-runner your suite uses. Nothing in the CI setup is tied to a particular
+from Python, JavaScript, Rust, and the `xa11y` CLI, so substitute whichever
+test runner your suite uses. Nothing in the CI setup is tied to a particular
 language.
 
 ## Why it's tricky
 
-This section is CI-agnostic — it describes the underlying platform
-requirements, not anything specific to GitHub Actions. Each platform exposes
+This section is CI-agnostic, describing the underlying platform
+requirements rather than anything specific to GitHub Actions. Each platform exposes
 accessibility differently, and each has a precondition that fails silently if
 you miss it:
 
 | Platform | API | What CI is missing by default |
 | --- | --- | --- |
-| **Linux** | AT-SPI2 (D-Bus) | No display, no D-Bus session, AT-SPI bridge not running/enabled |
+| **Linux** | AT-SPI2 (D-Bus) | A display, a D-Bus session, and the AT-SPI bridge all have to be started |
 | **macOS** | AXUIElement | The test process isn't granted the Accessibility (TCC) permission |
-| **Windows** | UI Automation | Nothing — UIA works on hosted runners out of the box |
+| **Windows** | UI Automation | Nothing. UIA works on hosted runners out of the box |
 
 The failure mode is the same on Linux and macOS: queries return an **empty
 tree** rather than an error, so it looks like your app has no UI. The
@@ -43,10 +43,10 @@ sections below show how to satisfy each precondition.
 
 ## The `setup-a11y` action (GitHub Actions)
 
-This section is **GitHub Actions–specific**. The quickest path on GitHub is
+This section is **specific to GitHub Actions**. The quickest path on GitHub is
 the [`xa11y/setup-a11y`](https://github.com/xa11y/setup-a11y) action. It
 installs the Linux system libraries, brings up a headless display + D-Bus +
-AT-SPI, and (on macOS) grants the Accessibility permission — then exports the
+AT-SPI, and (on macOS) grants the Accessibility permission, then exports the
 environment so every later step in the job inherits it.
 
 ```yaml title=".github/workflows/test.yml"
@@ -78,22 +78,22 @@ jobs:
 | `install-deps` | `true` | Set `false` to skip apt entirely. |
 | `setup-display` | `true` | Start Xvfb and export `DISPLAY` (Linux). |
 | `setup-atspi` | `true` | Start D-Bus + AT-SPI and export their env (Linux). |
-| `setup-window-manager` | `false` | Start fluxbox — needed by toolkits (e.g. egui) that only publish their tree once a window is mapped/focused. |
+| `setup-window-manager` | `false` | Start fluxbox, needed by toolkits (e.g. egui) that only publish their tree once a window is mapped/focused. |
 | `display` | `:99` | X display number for Xvfb. |
-| `macos-tcc-client` | `""` | Path to the binary to grant Accessibility (TCC) on macOS — e.g. your python interpreter. When empty, the action warns instead. |
+| `macos-tcc-client` | `""` | Path to the binary to grant Accessibility (TCC) on macOS, e.g. your python interpreter. When empty, the action warns instead. |
 
 The Linux package set is defined once, in
 [`apt-packages.txt`](https://github.com/xa11y/setup-a11y/blob/v1/apt-packages.txt),
 grouped by purpose. Pick the groups your test app's toolkit needs:
 
-- **base** — headless display + AT-SPI stack. Always include this.
-- **gtk** — GTK3/4 + WebKitGTK (GTK apps, Tauri).
-- **electron** — Chromium/Electron runtime libraries.
+- **base** covers the headless display and AT-SPI stack. Always include this.
+- **gtk** covers GTK3/4 and WebKitGTK (GTK apps, Tauri).
+- **electron** covers the Chromium/Electron runtime libraries.
 
 ## macOS
 
 macOS won't let one process read another's accessibility tree unless it holds
-the **Accessibility** TCC permission — this is a macOS requirement, not a
+the **Accessibility** TCC permission. That is a macOS requirement, not a
 GitHub Actions one. On a hosted runner you grant it to whichever process runs
 your tests: the Python or Node interpreter, the `xa11y` CLI binary, or your
 own test harness. The GitHub Actions example below grants it to the Python
@@ -119,7 +119,7 @@ takes effect immediately.
 
 ### Granting TCC without the action
 
-Outside GitHub Actions — a different CI system, or a local headless run — use
+Outside GitHub Actions, on a different CI system or a local headless run, use
 the standalone helper [`scripts/grant_macos_tcc.sh`](https://github.com/xa11y/xa11y/blob/main/scripts/grant_macos_tcc.sh).
 Pass it the **resolved** interpreter path (TCC matches the real on-disk
 binary, not a venv symlink):
@@ -132,21 +132,21 @@ scripts/grant_macos_tcc.sh "$(.venv/bin/python -c 'import sys; print(sys.executa
 The `setup-a11y` action (in its own [`xa11y/setup-a11y`](https://github.com/xa11y/setup-a11y)
 repo) carries its own inline copy of this sqlite write rather than calling the
 script. That's structural, not an oversight: a composite action consumed as
-`xa11y/setup-a11y@v1` only receives the action's own directory — it doesn't get
-a checkout of this repo, so it can't reach `scripts/`. The action must be
-self-contained to work for external consumers; the script serves the contexts
-the action can't (local dev, other CI). Keep the two in sync — each side says
-so in a comment.
+`xa11y/setup-a11y@v1` only receives the action's own directory, and it doesn't
+get a checkout of this repo, so it can't reach `scripts/`. The action must be
+self-contained to work for external consumers. The script serves the contexts
+the action can't (local dev, other CI). Keep the two in sync. Each side says so
+in a comment.
 :::
 
 ## Windows
 
-Nothing to set up — UI Automation is available on hosted `windows-latest`
-runners, which have an interactive desktop session. Just run your tests.
+UI Automation is available on hosted `windows-latest` runners, which have an
+interactive desktop session, so just run your tests.
 
 ## Doing it without the action (any CI)
 
-If you're not on GitHub Actions — or can't use the composite action — here's
+If you're not on GitHub Actions, or can't use the composite action, here's
 the underlying setup for Linux as plain shell commands. This is exactly what
 the action automates, and it works on any CI system or a local machine:
 
