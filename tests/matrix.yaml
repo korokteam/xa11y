@@ -198,8 +198,10 @@ gaps:
       electron: linux). The Linux Wayland uinput e2e job covers the Linux
       backend at wire level and the macOS CGEvent path is covered through
       tauri, so xa11y-windows' SendInput path is the one input backend no
-      test drives end-to-end. Closing it means adding
-      `- { os: windows-latest, app: tauri }` to the integ matrix.
+      test drives end-to-end (xa11y-windows/src/input.rs has no unit tests
+      either; input backends are covered end-to-end by design). Closing it
+      means adding `- { os: windows-latest, app: tauri }` to the integ
+      matrix. Tracked in #348.
     severity: medium
     workaround: "Unit tests only; no end-to-end assertion of the Windows SendInput path"
     affects:

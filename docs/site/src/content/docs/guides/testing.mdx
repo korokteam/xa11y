@@ -60,7 +60,8 @@ macOS runners cannot hold against a cargo-hashed binary path.
 Tauri has no Windows cell, and since it is the only app carrying the
 input-simulation suite, the Windows `SendInput` path has no end-to-end
 coverage. That gap is declared as `windows_input_sim` in
-[`tests/matrix.yaml`](https://github.com/xa11y/xa11y/blob/main/tests/matrix.yaml).
+[`tests/matrix.yaml`](https://github.com/xa11y/xa11y/blob/main/tests/matrix.yaml)
+and tracked in [issue #348](https://github.com/xa11y/xa11y/issues/348).
 
 Across those rows, xa11y is exercised against all three platform accessibility
 backends (**AT-SPI2** on Linux, **AXUIElement** on macOS, **UI Automation** on
