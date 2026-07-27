@@ -24,11 +24,14 @@ apps:
     platforms: [macos]
 
   tauri:
-    platforms: [linux, macos, windows]
+    platforms: [linux, macos]
     notes: >
       Primary vehicle for input_sim and screenshot coverage (one-per-platform strategy).
       Uses a dedicated event-log page that captures synthesised pointer and keyboard
       events, enabling end-to-end assertions rather than smoke tests.
+      No windows-latest cell: WebView2 has never been wired into the integ
+      matrix. Since tauri is the only app carrying input_sim, that leaves
+      Windows input simulation uncovered — tracked as windows_input_sim below.
 
   electron:
     platforms: [linux]
@@ -49,8 +52,8 @@ apps:
     platforms: [windows]
     notes: >
       The only Microsoft UI framework in the matrix. Every other Windows cell
-      reaches UIA through a third-party bridge (Qt, AccessKit, Chromium,
-      WebView2), so the WinForms provider — and in particular the
+      reaches UIA through a third-party bridge (Qt via qt, AccessKit via
+      egui), so the WinForms provider — and in particular the
       DataGridView, whose cells are ControlType.DataItem + the TableItem
       pattern — is what exercises the row-vs-cell disambiguation in
       xa11y-windows against a framework grid. Built with `dotnet build`
@@ -92,7 +95,10 @@ features:
     per_app: false
     tested_on: [tauri, electron]
     notes: >
-      Tests platform input APIs, not a11y compatibility. Covered once per platform.
+      Tests platform input APIs, not a11y compatibility. Covered once per
+      platform on Linux and macOS, and not at all on Windows: both vehicles
+      (tauri, electron) stop short of a windows-latest cell, so the SendInput
+      path has no integration coverage. See the windows_input_sim gap.
       Python: Tauri app (end-to-end with event log). JS: Tauri + Electron apps
       (smoke tests; see the app gate in tests/suites/js/03_input_sim.test.js).
 
@@ -101,7 +107,9 @@ features:
     per_app: false
     tested_on: [tauri, electron]
     notes: >
-      Tests platform screenshot APIs. Covered once per platform.
+      Tests platform screenshot APIs. Covered once per platform. On Windows
+      that cover comes from rust_core alone, since neither per-app vehicle
+      (tauri, electron) has a windows-latest cell.
       Python: Tauri app. JS: Tauri + Electron apps. Rust: AccessKit app
       (rust_core).
 
@@ -181,6 +189,22 @@ gaps:
     affects:
       apps: [accesskit]
       language: python
+
+  - id: windows_input_sim
+    description: >
+      Input simulation has no integration coverage on Windows. input_sim is
+      carried by the tauri and electron apps only, and neither has a
+      windows-latest cell in the integ matrix (tauri: linux + macos;
+      electron: linux). The Linux Wayland uinput e2e job covers the Linux
+      backend at wire level and the macOS CGEvent path is covered through
+      tauri, so xa11y-windows' SendInput path is the one input backend no
+      test drives end-to-end. Closing it means adding
+      `- { os: windows-latest, app: tauri }` to the integ matrix.
+    severity: medium
+    workaround: "Unit tests only; no end-to-end assertion of the Windows SendInput path"
+    affects:
+      apps: [tauri]
+      features: [input_sim]
 
   - id: js_input_sim_per_app
     description: >

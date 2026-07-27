@@ -42,17 +42,25 @@ UI Automation tree, not a fixture shaped to match the code.
 
 | Test app | Toolkit | Linux | macOS | Windows |
 | --- | --- | :---: | :---: | :---: |
-| `accesskit` | Rust + winit (AccessKit) | ✓ | ✓ | ✓ |
+| `accesskit` | Rust + winit (AccessKit) | ✓ | ✓&nbsp;† | ✓ |
 | `qt` | PySide6 (Qt) | ✓ | ✓ | ✓ |
 | `gtk` | GTK4 (PyGObject) | ✓ | ○ | ○ |
 | `cocoa` | Swift / AppKit | ○ | ✓ | ○ |
-| `tauri` | Rust + WebView | ✓ | ✓ | ✓ |
+| `tauri` | Rust + WebView | ✓ | ✓ | ○ |
 | `electron` | Chromium / Node | ✓ | ○ | ○ |
 | `egui` | Rust immediate-mode (eframe) | ✓ | ✓ | ✓ |
 | `winforms` | .NET Windows Forms | ○ | ○ | ✓ |
 | `wpf` | .NET WPF | ○ | ○ | ✓ |
 
-A hollow circle means the combination is not run in CI.
+A hollow circle means the combination is not run in CI. † AccessKit on macOS
+runs locally through `./scripts/run_integ_tests_macos.sh` rather than in CI,
+because the Rust integ suite needs an Accessibility (TCC) grant that hosted
+macOS runners cannot hold against a cargo-hashed binary path.
+
+Tauri has no Windows cell, and since it is the only app carrying the
+input-simulation suite, the Windows `SendInput` path has no end-to-end
+coverage. That gap is declared as `windows_input_sim` in
+[`tests/matrix.yaml`](https://github.com/xa11y/xa11y/blob/main/tests/matrix.yaml).
 
 Across those rows, xa11y is exercised against all three platform accessibility
 backends (**AT-SPI2** on Linux, **AXUIElement** on macOS, **UI Automation** on
