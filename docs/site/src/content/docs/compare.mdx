@@ -134,7 +134,7 @@ Platform prerequisites are minimal but real. macOS needs the Accessibility permi
 ## When not to use xa11y
 
 - **The app exposes no accessibility data.** Games, canvas-drawn interfaces, and apps whose toolkit never wired up accessibility. Dump the tree with the command-line tool first; if it comes back empty or shows one opaque window, you need injection (Squish, TestComplete), pixels (SikuliX), or vision.
-- **You want a point-and-click front end.** The commercial suites bundle a recorder, an IDE, and reporting. xa11y is a library with none of them.
+- **A recorder, an IDE, or a low-code authoring mode.** xa11y is a library with none of those. The commercial suites bundle them.
 - **You are testing a website.** Playwright or Selenium test the DOM directly, control the browser lifecycle, and intercept network traffic. xa11y drives a browser only as another desktop app.
 - **You are on Windows only, permanently.** FlaUI and pywinauto expose more of UI Automation than xa11y does.
 - **You need vendor support with an SLA.** xa11y is a community project.

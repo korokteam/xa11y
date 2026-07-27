@@ -123,8 +123,9 @@ already failed.
 
 ## App lookups
 
-`App.by_pid` / `App.by_name` / `App.find` timeouts list every running app,
-so an attach failure on an opaque CI runner is diagnosable from the message:
+`App.by_pid` / `App.by_name` / `App.find` timeouts report a bounded list of
+the apps that were running, so an attach failure on an opaque CI runner is
+diagnosable from the message:
 
 ```text
 xa11y.SelectorNotMatchedError: No element matched selector:
