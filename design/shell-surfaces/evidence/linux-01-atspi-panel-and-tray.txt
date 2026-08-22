@@ -1,0 +1,202 @@
+dbus-daemon[7]: [session uid=0 pid=7] Activating service name='ca.desrt.dconf' requested by ':1.0' (uid=0 pid=13 comm="gsettings set org.gnome.desktop.interface toolkit-" label="kernel")
+dbus-daemon[7]: [session uid=0 pid=7] Successfully activated service 'ca.desrt.dconf'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[7]: [session uid=0 pid=7] Activating service name='org.xfce.Xfconf' requested by ':1.5' (uid=0 pid=37 comm="xfce4-panel --disable-wm-check" label="kernel")
+dbus-daemon[7]: [session uid=0 pid=7] Successfully activated service 'org.xfce.Xfconf'
+/trayapp.py:12: DeprecationWarning: Gtk.StatusIcon.set_from_icon_name is deprecated
+  legacy.set_from_icon_name("dialog-information")
+/trayapp.py:13: DeprecationWarning: Gtk.StatusIcon.set_tooltip_text is deprecated
+  legacy.set_tooltip_text("Legacy XEmbed icon")
+/trayapp.py:14: DeprecationWarning: Gtk.StatusIcon.set_title is deprecated
+  legacy.set_title("LegacyXEmbedIcon")
+/trayapp.py:15: DeprecationWarning: Gtk.StatusIcon.set_visible is deprecated
+  legacy.set_visible(True)
+SNI indicator created
+tray app running
+### Session-bus names matching status/tray/kde/indicator:
+org.kde.StatusNotifierWatcher
+org.xfce.Panel
+
+### StatusNotifierWatcher.RegisteredStatusNotifierItems:
+(<[':1.14/org/ayatana/NotificationItem/xa11y_probe_sni']>,)
+### StatusNotifierWatcher.IsStatusNotifierHostRegistered:
+(<true>,)
+
+==================== AT-SPI2 DESKTOP DUMP ====================
+desktop children = 4
+
+=== app[0] 'xfce4-panel' toolkit=gtk version=? ===
+application 'xfce4-panel' pid=37 [-] states=[] actions=[] ifaces=[Collection]
+  frame '' pid=37 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:dock']
+    panel '' pid=37 [0,0 1280x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [0,0 102x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button 'Applications' pid=37 [0,0 102x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Applications' attrs=['toolkit:gtk']
+      panel '' pid=37 [102,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [102,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          filler '' pid=37 [102,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          panel '' pid=37 [110,0 1x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [110,0 971x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1081,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        unknown '' pid=37 [1081,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1107,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+          filler '' pid=54 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+            frame '' pid=54 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:normal']
+              panel '' pid=54 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                filler '' pid=54 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                  panel '' pid=54 [1115,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                    panel '' pid=54 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                      filler '' pid=54 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+                        filler '' pid=66 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+                          frame 'LegacyXEmbedIcon' pid=66 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] desc='Legacy XEmbed icon' attrs=['toolkit:gtk', 'window-type:normal']
+                            icon '' pid=66 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[] ifaces=[Collection,Component,Image] attrs=['toolkit:gtk']
+                  panel '' pid=54 [1142,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                    push button '' pid=54 [1142,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+                  toggle button '' pid=54 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [1168,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1176,0 68x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button '2026-08-22' pid=37 [1176,0 68x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [1244,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+          filler '' pid=58 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+            frame '' pid=58 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:normal']
+              panel '' pid=58 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                toggle button 'root' pid=58 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+  frame '' pid=37 [-9999,-9999 3x3] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:dock']
+  frame '' pid=37 [487,975 306x49] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:dock']
+    panel '' pid=37 [488,976 304x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [488,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button 'Show Desktop' pid=37 [488,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Minimize all open windows and show the desktop' attrs=['toolkit:gtk']
+      panel '' pid=37 [536,976 8x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [544,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [544,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button 'Terminal Emulator' pid=37 [544,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Use the command line' attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [592,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [592,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button 'File Manager' pid=37 [592,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Browse the file system' attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [640,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [640,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button 'Web Browser' pid=37 [640,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Browse the web' attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [688,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [688,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button '' pid=37 [688,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [736,976 8x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [744,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button 'Directory Menu' pid=37 [744,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='/root' attrs=['toolkit:gtk']
+
+=== app[1] 'wrapper-2.0' toolkit=gtk version=? ===
+application 'wrapper-2.0' pid=58 [-] states=[] actions=[] ifaces=[Collection]
+
+=== app[2] 'wrapper-2.0' toolkit=gtk version=? ===
+application 'wrapper-2.0' pid=54 [-] states=[] actions=[] ifaces=[Collection]
+
+=== app[3] 'trayapp.py' toolkit=gtk version=? ===
+application 'trayapp.py' pid=66 [-] states=[] actions=[] ifaces=[Collection]
+
+==================== PRESS the SNI tray item (1155,13) ====================
+pressing: push button '' pid=54 [1142,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+doAction(0) [click] -> True
+---- desktop tree after pressing the SNI item ----
+desktop children = 4
+
+=== app[0] 'xfce4-panel' toolkit=gtk version=? ===
+application 'xfce4-panel' pid=37 [-] states=[] actions=[] ifaces=[Collection]
+  frame '' pid=37 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:dock']
+    panel '' pid=37 [0,0 1280x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [0,0 102x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button 'Applications' pid=37 [0,0 102x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Applications' attrs=['toolkit:gtk']
+      panel '' pid=37 [102,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [102,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          filler '' pid=37 [102,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          panel '' pid=37 [110,0 1x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [110,0 971x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1081,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        unknown '' pid=37 [1081,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1107,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+          filler '' pid=54 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+            frame '' pid=54 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:normal']
+              panel '' pid=54 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                filler '' pid=54 [1115,0 53x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                  panel '' pid=54 [1115,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                    panel '' pid=54 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                      filler '' pid=54 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+                        filler '' pid=66 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+                          frame 'LegacyXEmbedIcon' pid=66 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] desc='Legacy XEmbed icon' attrs=['toolkit:gtk', 'window-type:normal']
+                            icon '' pid=66 [1117,2 22x22] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[] ifaces=[Collection,Component,Image] attrs=['toolkit:gtk']
+                  panel '' pid=54 [1142,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                    push button '' pid=54 [1142,0 26x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE,FOCUSABLE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+                  toggle button '' pid=54 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [1168,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1176,0 68x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button '2026-08-22' pid=37 [1176,0 68x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [1244,0 8x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+          filler '' pid=58 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component]
+            frame '' pid=58 [0,0 1280x27] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:normal']
+              panel '' pid=58 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+                toggle button 'root' pid=58 [1252,0 28x26] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+  frame '' pid=37 [-9999,-9999 3x3] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:dock']
+  frame '' pid=37 [487,975 306x49] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk', 'window-type:dock']
+    panel '' pid=37 [488,976 304x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [488,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button 'Show Desktop' pid=37 [488,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Minimize all open windows and show the desktop' attrs=['toolkit:gtk']
+      panel '' pid=37 [536,976 8x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [544,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [544,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button 'Terminal Emulator' pid=37 [544,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Use the command line' attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [592,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [592,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button 'File Manager' pid=37 [592,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Browse the file system' attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [640,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [640,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button 'Web Browser' pid=37 [640,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='Browse the web' attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [688,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        filler '' pid=37 [688,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+          push button '' pid=37 [688,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+          toggle button 'Open launcher menu' pid=37 [-2147483648,-2147483648 1x1] states=[ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] attrs=['toolkit:gtk']
+      panel '' pid=37 [736,976 8x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+      panel '' pid=37 [744,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[] ifaces=[Collection,Component] attrs=['toolkit:gtk']
+        toggle button 'Directory Menu' pid=37 [744,976 48x48] states=[VISIBLE,SHOWING,ENABLED,SENSITIVE] actions=[click] ifaces=[Action,Collection,Component,Image] desc='/root' attrs=['toolkit:gtk']
+
+=== app[1] 'wrapper-2.0' toolkit=gtk version=? ===
+application 'wrapper-2.0' pid=58 [-] states=[] actions=[] ifaces=[Collection]
+
+=== app[2] 'wrapper-2.0' toolkit=gtk version=? ===
+application 'wrapper-2.0' pid=54 [-] states=[] actions=[] ifaces=[Collection]
+
+=== app[3] 'trayapp.py' toolkit=gtk version=? ===
+application 'trayapp.py' pid=66 [-] states=[] actions=[] ifaces=[Collection]
+
+==================== session bus names after press ====================
+
+:1.1
+:1.10
+:1.11
+:1.12
+:1.13
+:1.14
+:1.2
+:1.21
+:1.3
+:1.4
+:1.5
+:1.6
+:1.9
+ca.desrt.dconf
+org.a11y.Bus
+org.freedesktop.DBus
+org.kde.StatusNotifierWatcher
+org.xfce.Panel
+org.xfce.Xfconf

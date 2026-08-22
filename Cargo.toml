@@ -19,6 +19,9 @@ exclude = [
     # in unrelated PRs. Keep it out of the workspace and build only on the
     # `integ`/`test-egui` jobs that actually need it. Mirrors the Tauri split.
     "test-apps/egui",
+    # Standalone research probe for design/shell-surfaces. Not part of the library;
+    # excluded so it can be built on its own without joining the workspace.
+    "design/shell-surfaces/probes/windows",
 ]
 resolver = "2"
 

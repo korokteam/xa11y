@@ -1,0 +1,11 @@
+Pane "Program Manager" class="Progman" aid="" fw=Win32 pid=8008(explorer.exe) rect=[0,0 640x480] kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Pane "" class="SHELLDLL_DefView" aid="" fw=Win32 pid=8008(explorer.exe) rect=[0,0 640x480] kbd=false pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+    List "Desktop" class="SysListView32" aid="1" fw=Win32 pid=8008(explorer.exe) rect=[0,0 640x480] kbd=true pats=[MultipleView,Selection,LegacyIAccessible] legacy{role=33,state=0x100000,action="",value=""}
+      ListItem "Recycle Bin" class="" aid="ListViewItem-0" fw=Win32 pid=8008(explorer.exe) rect=[0,5 80x70] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300002,action="Double Click",value=""}
+      ListItem "Learn about this picture" class="" aid="ListViewItem-1" fw=Win32 pid=8008(explorer.exe) rect=[560,5 80x85] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300000,action="Double Click",value=""}
+      ListItem "Google Chrome" class="" aid="ListViewItem-2" fw=Win32 pid=8008(explorer.exe) rect=[0,205 80x85] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300000,action="Double Click",value=""}
+      ListItem "Microsoft Edge" class="" aid="ListViewItem-3" fw=Win32 pid=8008(explorer.exe) rect=[0,105 80x85] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300000,action="Double Click",value=""}
+      ListItem "Docker Desktop" class="" aid="ListViewItem-4" fw=Win32 pid=8008(explorer.exe) rect=[560,305 80x85] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300000,action="Double Click",value=""}
+      ListItem "KiCad 10.0" class="" aid="ListViewItem-5" fw=Win32 pid=8008(explorer.exe) rect=[480,305 80x70] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300000,action="Double Click",value=""}
+      ListItem "<redacted desktop item>" class="" aid="ListViewItem-6" fw=Win32 pid=8008(explorer.exe) rect=[0,305 80x85] kbd=true pats=[Invoke,ScrollItem,SelectionItem,LegacyIAccessible] legacy{role=34,state=0x1300000,action="Double Click",value=""}
+

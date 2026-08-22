@@ -1,0 +1,11 @@
+# ShowContextMenu (IUIAutomationElement3) — before/after top-level window snapshots
+# Counts of Microsoft.UI.Content.PopupWindowSiteBridge ("PopupHost") windows:
+  /tmp/b2.txt: 0
+  /tmp/a2.txt: 0
+  /tmp/c1.txt: 8
+  /tmp/c2.txt: 3
+#   b2 = before ShowContextMenu on tray icon "Pulp is running"     -> 0
+#   a2 = after  ShowContextMenu on tray icon "Pulp is running"     -> 0   (S_OK, no popup)
+#   c1 = after  ShowContextMenu on desktop ListItem "Recycle Bin"  -> 8   (S_OK, popup created)
+#   c2 = after  a second ShowContextMenu on "Recycle Bin"          -> 3   (re-shown)
+# Taskbar app button "Terminal - 3 running windows": S_OK, UIA root children unchanged.

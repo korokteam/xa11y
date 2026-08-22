@@ -1,0 +1,10 @@
+# Start button: UIA TogglePattern reports success and flips state; Start menu does not open.
+      Button "Start" class="ToggleButton" aid="StartButton" fw=XAML pid=8008(explorer.exe) rect=[122,432 33x48] kbd=true pats=[ScrollItem,Toggle,LegacyIAccessible] legacy{role=43,state=0x100000,action="Press",value=""} toggle=Ok(0)
+Toggle -> Ok(())
+      Button "Start" class="ToggleButton" aid="StartButton" fw=XAML pid=8008(explorer.exe) rect=[122,432 33x48] kbd=true pats=[ScrollItem,Toggle,LegacyIAccessible] legacy{role=43,state=0x100014,action="Press",value=""} toggle=Ok(1)
+# StartMenuExperienceHost windows on the desktop:
+0
+# (0 = no Start menu window was ever created)
+Toggle -> Ok(())
+# restored:
+      Button "Start" class="ToggleButton" aid="StartButton" fw=XAML pid=8008(explorer.exe) rect=[122,432 33x48] kbd=true pats=[ScrollItem,Toggle,LegacyIAccessible] legacy{role=43,state=0x100004,action="Press",value=""} toggle=Ok(0)

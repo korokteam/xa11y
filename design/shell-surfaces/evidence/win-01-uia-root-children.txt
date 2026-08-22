@@ -1,0 +1,8 @@
+Pane "Desktop 1" class="#32769" aid="" fw=Win32 pid=1280(?) rect=[0,0 640x480] kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Pane "Quick settings" class="ControlCenterWindow" aid="" fw=Win32 pid=8064(ShellHost.exe) rect=[256,0 384x432] kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Pane "Taskbar" class="Shell_TrayWnd" aid="" fw=Win32 pid=8008(explorer.exe) rect=[0,432 640x48] kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Window "Windows PowerShell" class="CASCADIA_HOSTING_WINDOW_CLASS" aid="" fw=Win32 pid=7836(WindowsTerminal.exe) rect=[44,52 804x635] kbd=true pats=[Transform,Window,LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Window "C:\\WINDOWS\\system32\\cmd.exe " class="CASCADIA_HOSTING_WINDOW_CLASS" aid="" fw=Win32 pid=7836(WindowsTerminal.exe) rect=[44,52 660x500] kbd=true pats=[Transform,Window,LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Window "C:\\WINDOWS\\system32\\cmd.exe " class="CASCADIA_HOSTING_WINDOW_CLASS" aid="" fw=Win32 pid=7836(WindowsTerminal.exe) rect=[70,78 660x500] kbd=true pats=[Transform,Window,LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Pane "" class="Tao Thread Event Target" aid="" fw=Win32 pid=7404(pulpw.exe) rect=[0,0 16x16] OFFSCREEN kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Pane "Program Manager" class="Progman" aid="" fw=Win32 pid=8008(explorer.exe) rect=[0,0 640x480] kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}

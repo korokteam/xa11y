@@ -1,0 +1,20 @@
+Pane "System tray overflow window." class="TopLevelWindowForOverflowXamlIsland" aid="" fw=Win32 pid=8008(explorer.exe) rect=[368,318 234x114] kbd=true pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+  Pane "PopupHost" class="Xaml_WindowedPopupClass" aid="" fw=XAML pid=8008(explorer.exe) rect=[368,318 234x114] kbd=false pats=[LegacyIAccessible] legacy{role=16,state=0x100000,action="",value=""}
+    Window "Popup" class="Popup" aid="" fw=XAML pid=8008(explorer.exe) rect=[0,0 0x0] OFFSCREEN kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=9,state=0x18000,action="",value=""}
+      ToolTip "Pulp is running" class="ToolTip" aid="" fw=XAML pid=8008(explorer.exe) rect=[354,291 102x32] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=13,state=0x0,action="",value=""}
+        Text "Pulp is running" class="TextBlock" aid="" fw=XAML pid=8008(explorer.exe) rect=[364,298 82x16] kbd=false pats=[ScrollItem,Text,LegacyIAccessible] legacy{role=41,state=0x0,action="",value=""}
+  Pane "DesktopWindowXamlSource" class="Windows.UI.Composition.DesktopWindowContentBridge" aid="" fw=Win32 pid=8008(explorer.exe) rect=[368,318 234x114] kbd=false pats=[LegacyIAccessible] legacy{role=10,state=0x100000,action="",value=""}
+    Pane "" class="Windows.UI.Input.InputSite.WindowClass" aid="" fw=XAML pid=8008(explorer.exe) rect=[368,318 234x114] kbd=false pats=[LegacyIAccessible] legacy{role=16,state=0x100000,action="",value=""}
+      Button "Pulp is running" class="SystemTray.NormalButton" aid="NotifyItemIcon" fw=XAML pid=8008(explorer.exe) rect=[385,335 40x40] kbd=true pats=[Invoke,ScrollItem,LegacyIAccessible] legacy{role=43,state=0x100004,action="Press",value=""}
+        Image "" class="Image" aid="" fw=XAML pid=8008(explorer.exe) rect=[397,347 16x16] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=40,state=0x0,action="",value=""}
+      Button " Ollama" class="SystemTray.NormalButton" aid="NotifyItemIcon" fw=XAML pid=8008(explorer.exe) rect=[425,335 40x40] kbd=true pats=[Invoke,ScrollItem,LegacyIAccessible] legacy{role=43,state=0x100000,action="Press",value=""}
+        Image "" class="Image" aid="" fw=XAML pid=8008(explorer.exe) rect=[437,347 16x16] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=40,state=0x0,action="",value=""}
+      Button " Docker Desktop running" class="SystemTray.NormalButton" aid="NotifyItemIcon" fw=XAML pid=8008(explorer.exe) rect=[465,335 40x40] kbd=true pats=[Invoke,ScrollItem,LegacyIAccessible] legacy{role=43,state=0x100000,action="Press",value=""}
+        Image "" class="Image" aid="" fw=XAML pid=8008(explorer.exe) rect=[477,347 16x16] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=40,state=0x0,action="",value=""}
+      Button " Tailscale: Connected. Click for options." class="SystemTray.NormalButton" aid="NotifyItemIcon" fw=XAML pid=8008(explorer.exe) rect=[505,335 40x40] kbd=true pats=[Invoke,ScrollItem,LegacyIAccessible] legacy{role=43,state=0x100000,action="Press",value=""}
+        Image "" class="Image" aid="" fw=XAML pid=8008(explorer.exe) rect=[517,347 16x16] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=40,state=0x0,action="",value=""}
+      Button "Bluetooth Devices" class="SystemTray.NormalButton" aid="NotifyItemIcon" fw=XAML pid=8008(explorer.exe) rect=[545,335 40x40] kbd=true pats=[Invoke,ScrollItem,LegacyIAccessible] legacy{role=43,state=0x100000,action="Press",value=""}
+        Image "" class="Image" aid="" fw=XAML pid=8008(explorer.exe) rect=[557,347 16x16] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=40,state=0x0,action="",value=""}
+      Button "Windows Security - No actions needed. Windows Security - Actions recommended." class="SystemTray.NormalButton" aid="NotifyItemIcon" fw=XAML pid=8008(explorer.exe) rect=[385,375 40x40] kbd=true pats=[Invoke,ScrollItem,LegacyIAccessible] legacy{role=43,state=0x100000,action="Press",value=""}
+        Image "" class="Image" aid="" fw=XAML pid=8008(explorer.exe) rect=[397,387 16x16] kbd=false pats=[ScrollItem,LegacyIAccessible] legacy{role=40,state=0x0,action="",value=""}
+
