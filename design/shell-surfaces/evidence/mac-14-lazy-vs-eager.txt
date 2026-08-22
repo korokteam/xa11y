@@ -1,0 +1,271 @@
+# mac-14 — are menu-bar submenus present cold, or only after AXPress?
+# Command: swift shell-probe.swift lazy <bundle-id> <top-level-menu-title>
+# macOS 26.5.2 (25F84), arm64, attended session, Accessibility granted.
+# Screen UNLOCKED (CGSSessionScreenIsLocked = 0) for every measurement below —
+# see mac-18 for why that matters. `caffeinate -d` held the display awake so the
+# session could not re-lock mid-run.
+#
+# MUTATING: each run opens a menu and then sends Escape.
+
+### shell-probe lazy — are submenus present cold, or only after the menu is opened?
+### Screen unlocked (CGSSessionScreenIsLocked = 0) throughout; verified before and after.
+
+########################################################################
+## A. Safari — full menu-bar breakdown, no press (cold only).
+##    'lazy <bundle> <name-that-does-not-exist>' prints the COLD snapshot
+##    and then exits, so this is a pure read.
+########################################################################
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.apple.Safari pid=55322, pressing "__no_such_menu__" ===
+COLD: menubar nodes=3165 maxDepth=9 walk=161.3ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Safari" subtree=30 depth=4 directChildren=1
+    "File" subtree=85 depth=4 directChildren=1
+    "Edit" subtree=84 depth=4 directChildren=1
+    "View" subtree=110 depth=4 directChildren=1
+    "History" subtree=400 depth=4 directChildren=1
+    "Bookmarks" subtree=2244 depth=8 directChildren=1
+    "Develop" subtree=69 depth=4 directChildren=1
+    "Window" subtree=65 depth=4 directChildren=1
+    "Help" subtree=9 depth=4 directChildren=1
+no top-level menu titled "__no_such_menu__"
+
+########################################################################
+## B. Safari — AXPress "Bookmarks" (the 2244-node, 8-deep submenu tree)
+########################################################################
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.apple.Safari pid=55322, pressing "Bookmarks" ===
+COLD: menubar nodes=3169 maxDepth=9 walk=93.8ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Safari" subtree=30 depth=4 directChildren=1
+    "File" subtree=85 depth=4 directChildren=1
+    "Edit" subtree=84 depth=4 directChildren=1
+    "View" subtree=110 depth=4 directChildren=1
+    "History" subtree=400 depth=4 directChildren=1
+    "Bookmarks" subtree=2244 depth=8 directChildren=1
+    "Develop" subtree=69 depth=4 directChildren=1
+    "Window" subtree=65 depth=4 directChildren=1
+    "Help" subtree=9 depth=4 directChildren=1
+
+AXPress "Bookmarks" -> 0 (success)
+OPEN: menubar nodes=3166 maxDepth=9 walk=188.5ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Safari" subtree=30 depth=4 directChildren=1
+    "File" subtree=86 depth=4 directChildren=1
+    "Edit" subtree=84 depth=4 directChildren=1
+    "View" subtree=110 depth=4 directChildren=1
+    "History" subtree=400 depth=4 directChildren=1
+    "Bookmarks" subtree=2244 depth=8 directChildren=1
+    "Develop" subtree=69 depth=4 directChildren=1
+    "Window" subtree=65 depth=4 directChildren=1
+    "Help" subtree=9 depth=4 directChildren=1
+
+delta = -3 nodes (3169 -> 3166)
+AFTER-ESCAPE: menubar nodes=3167 maxDepth=9 walk=183.9ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Safari" subtree=30 depth=4 directChildren=1
+    "File" subtree=87 depth=4 directChildren=1
+    "Edit" subtree=84 depth=4 directChildren=1
+    "View" subtree=110 depth=4 directChildren=1
+    "History" subtree=400 depth=4 directChildren=1
+    "Bookmarks" subtree=2244 depth=8 directChildren=1
+    "Develop" subtree=69 depth=4 directChildren=1
+    "Window" subtree=65 depth=4 directChildren=1
+    "Help" subtree=9 depth=4 directChildren=1
+
+after dismiss = 3167 nodes
+
+########################################################################
+## C. VS Code (Electron) — AXPress "File"
+########################################################################
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.microsoft.VSCode pid=41289, pressing "File" ===
+COLD: menubar nodes=512 maxDepth=7 walk=20.4ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Code" subtree=36 depth=6 directChildren=1
+    "File" subtree=59 depth=4 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "Selection" subtree=21 depth=2 directChildren=1
+    "View" subtree=102 depth=6 directChildren=1
+    "Go" subtree=53 depth=4 directChildren=1
+    "Run" subtree=30 depth=4 directChildren=1
+    "Terminal" subtree=17 depth=2 directChildren=1
+    "Window" subtree=51 depth=4 directChildren=1
+    "Help" subtree=27 depth=4 directChildren=1
+
+AXPress "File" -> 0 (success)
+OPEN: menubar nodes=512 maxDepth=7 walk=64.8ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Code" subtree=36 depth=6 directChildren=1
+    "File" subtree=59 depth=4 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "Selection" subtree=21 depth=2 directChildren=1
+    "View" subtree=102 depth=6 directChildren=1
+    "Go" subtree=53 depth=4 directChildren=1
+    "Run" subtree=30 depth=4 directChildren=1
+    "Terminal" subtree=17 depth=2 directChildren=1
+    "Window" subtree=51 depth=4 directChildren=1
+    "Help" subtree=27 depth=4 directChildren=1
+
+delta = 0 nodes (512 -> 512)
+AFTER-ESCAPE: menubar nodes=512 maxDepth=7 walk=60.2ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Code" subtree=36 depth=6 directChildren=1
+    "File" subtree=59 depth=4 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "Selection" subtree=21 depth=2 directChildren=1
+    "View" subtree=102 depth=6 directChildren=1
+    "Go" subtree=53 depth=4 directChildren=1
+    "Run" subtree=30 depth=4 directChildren=1
+    "Terminal" subtree=17 depth=2 directChildren=1
+    "Window" subtree=51 depth=4 directChildren=1
+    "Help" subtree=27 depth=4 directChildren=1
+
+after dismiss = 512 nodes
+
+########################################################################
+## D. Activity Monitor — AXPress "View", run twice back to back.
+##    Both runs are steady state (delta = 0). This app had already been
+##    activated earlier in the session, so its one-time Help-menu injection
+##    (3 -> 7 nodes) had already happened and is NOT captured here. See E for
+##    the recorded cold-launch case.
+########################################################################
+--- D1 ---
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.apple.ActivityMonitor pid=22686, pressing "View" ===
+COLD: menubar nodes=268 maxDepth=5 walk=39.0ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Activity Monitor" subtree=18 depth=4 directChildren=1
+    "File" subtree=7 depth=2 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "View" subtree=71 depth=4 directChildren=1
+    "Window" subtree=49 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+AXPress "View" -> 0 (success)
+OPEN: menubar nodes=268 maxDepth=5 walk=38.4ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Activity Monitor" subtree=18 depth=4 directChildren=1
+    "File" subtree=7 depth=2 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "View" subtree=71 depth=4 directChildren=1
+    "Window" subtree=49 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+delta = 0 nodes (268 -> 268)
+AFTER-ESCAPE: menubar nodes=268 maxDepth=5 walk=46.9ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Activity Monitor" subtree=18 depth=4 directChildren=1
+    "File" subtree=7 depth=2 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "View" subtree=71 depth=4 directChildren=1
+    "Window" subtree=49 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+after dismiss = 268 nodes
+--- D2 ---
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.apple.ActivityMonitor pid=22686, pressing "View" ===
+COLD: menubar nodes=268 maxDepth=5 walk=8.8ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Activity Monitor" subtree=18 depth=4 directChildren=1
+    "File" subtree=7 depth=2 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "View" subtree=71 depth=4 directChildren=1
+    "Window" subtree=49 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+AXPress "View" -> 0 (success)
+OPEN: menubar nodes=268 maxDepth=5 walk=41.3ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Activity Monitor" subtree=18 depth=4 directChildren=1
+    "File" subtree=7 depth=2 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "View" subtree=71 depth=4 directChildren=1
+    "Window" subtree=49 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+delta = 0 nodes (268 -> 268)
+AFTER-ESCAPE: menubar nodes=268 maxDepth=5 walk=36.2ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Activity Monitor" subtree=18 depth=4 directChildren=1
+    "File" subtree=7 depth=2 directChildren=1
+    "Edit" subtree=43 depth=4 directChildren=1
+    "View" subtree=71 depth=4 directChildren=1
+    "Window" subtree=49 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+after dismiss = 268 nodes
+
+########################################################################
+## E. Calculator — launched fresh for this probe, then quit.
+##    This is the only genuinely cold app in the set: it had not been
+##    activated, and no AX client had talked to it before E1.
+########################################################################
+--- E1 (first AX contact after launch) ---
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.apple.calculator pid=55135, pressing "View" ===
+COLD: menubar nodes=207 maxDepth=5 walk=47.5ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Calculator" subtree=18 depth=4 directChildren=1
+    "Edit" subtree=33 depth=4 directChildren=1
+    "View" subtree=35 depth=4 directChildren=1
+    "Window" subtree=45 depth=4 directChildren=1
+    "Help" subtree=3 depth=2 directChildren=1
+
+AXPress "View" -> 0 (success)
+OPEN: menubar nodes=211 maxDepth=5 walk=42.3ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Calculator" subtree=18 depth=4 directChildren=1
+    "Edit" subtree=33 depth=4 directChildren=1
+    "View" subtree=35 depth=4 directChildren=1
+    "Window" subtree=45 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+delta = 4 nodes (207 -> 211)
+AFTER-ESCAPE: menubar nodes=211 maxDepth=5 walk=37.5ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Calculator" subtree=18 depth=4 directChildren=1
+    "Edit" subtree=33 depth=4 directChildren=1
+    "View" subtree=35 depth=4 directChildren=1
+    "Window" subtree=45 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+after dismiss = 211 nodes
+--- E2 (immediately after) ---
+AXIsProcessTrusted = true
+
+=== lazy-vs-eager: com.apple.calculator pid=55135, pressing "View" ===
+COLD: menubar nodes=211 maxDepth=5 walk=8.9ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Calculator" subtree=18 depth=4 directChildren=1
+    "Edit" subtree=33 depth=4 directChildren=1
+    "View" subtree=35 depth=4 directChildren=1
+    "Window" subtree=45 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+AXPress "View" -> 0 (success)
+OPEN: menubar nodes=211 maxDepth=5 walk=36.1ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Calculator" subtree=18 depth=4 directChildren=1
+    "Edit" subtree=33 depth=4 directChildren=1
+    "View" subtree=35 depth=4 directChildren=1
+    "Window" subtree=45 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+delta = 0 nodes (211 -> 211)
+AFTER-ESCAPE: menubar nodes=211 maxDepth=5 walk=31.9ms caps=-
+    "Apple" subtree=72 depth=4 directChildren=1
+    "Calculator" subtree=18 depth=4 directChildren=1
+    "Edit" subtree=33 depth=4 directChildren=1
+    "View" subtree=35 depth=4 directChildren=1
+    "Window" subtree=45 depth=4 directChildren=1
+    "Help" subtree=7 depth=4 directChildren=1
+
+after dismiss = 211 nodes

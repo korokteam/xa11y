@@ -1,0 +1,261 @@
+# mac-15 — name-set intersection: AXMenuBar subtree vs window content.
+# Command: swift shell-probe.swift collide
+# macOS 26.5.2 (25F84), arm64, attended session, Accessibility granted.
+# Screen UNLOCKED (CGSSessionScreenIsLocked = 0) for every measurement below —
+# see mac-18 for why that matters. `caffeinate -d` held the display awake so the
+# session could not re-lock mid-run.
+#
+# 'name' is computed with xa11y's own rule (ax.rs:1543): AXTitle, else
+# AXValue when the role is AXStaticText, else AXDescription. Empty strings
+# are not filtered there and are not filtered here; they are counted apart.
+#
+# WINDOW excludes every AXMenuBar-role child, because AXExtrasMenuBar is one
+# too and the filter under discussion drops it as well.
+
+AXIsProcessTrusted = true
+
+=== name collision: AXMenuBar subtree vs rest of app tree ===
+name rule = xa11y's own (ax.rs:1543): AXTitle, else AXValue if AXStaticText, else AXDescription
+menu_item roles = AXMenuBarItem, AXMenuItem
+
+--- com.apple.MobileSMS pid=1218 ---
+  menubar:      288 nodes, 269 named, collect=29.6ms caps=-
+  window:       52 nodes, 33 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=60.3ms
+  [all nodes vs WINDOW] menubar distinct names=217 rest distinct names=28 intersection=1 (non-empty 1, of which same-role 0)
+    COLLIDE [cross-role] "Messages"  menubar=AXMenuBarItem/AXMenuItem  window=AXGroup
+  [menu_item scope vs WINDOW] menubar distinct names=217 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=217 rest distinct names=28 intersection=1 (non-empty 1, of which same-role 0)
+    COLLIDE [cross-role] "Messages"  menubar=AXMenuBarItem/AXMenuItem  window=AXGroup
+
+--- com.apple.finder pid=1227 ---
+  menubar:      348 nodes, 326 named, collect=54.2ms caps=-
+  window:       442 nodes, 137 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=178.1ms
+  [all nodes vs WINDOW] menubar distinct names=254 rest distinct names=70 intersection=17 (non-empty 16, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "AirDrop"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Applications"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<folder-10>"  menubar=AXMenuItem  window=AXImage/AXStaticText
+    COLLIDE [cross-role] "Desktop"  menubar=AXMenuItem  window=AXStaticText/AXWindow
+    COLLIDE [cross-role] "Documents"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Downloads"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Eject"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "<folder-4>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "Macintosh HD"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recents"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Shared"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Tags"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<folder-9>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "<folder-3>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "<user-short>"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<folder-20>"  menubar=AXMenuItem  window=AXStaticText/AXWindow
+  [menu_item scope vs WINDOW] menubar distinct names=244 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=254 rest distinct names=70 intersection=17 (non-empty 16, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "AirDrop"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Applications"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<folder-10>"  menubar=AXMenuItem  window=AXImage/AXStaticText
+    COLLIDE [cross-role] "Desktop"  menubar=AXMenuItem  window=AXStaticText/AXWindow
+    COLLIDE [cross-role] "Documents"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Downloads"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Eject"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "<folder-4>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "Macintosh HD"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recents"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Shared"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Tags"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<folder-9>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "<folder-3>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "<user-short>"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<folder-20>"  menubar=AXMenuItem  window=AXStaticText/AXWindow
+
+--- com.automattic.SimplenoteMac pid=83106 ---
+  menubar:      244 nodes, 223 named, collect=120.6ms caps=-
+  window:       3907 nodes, 1715 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=195803.2ms
+  [all nodes vs WINDOW] menubar distinct names=189 rest distinct names=1515 intersection=1 (non-empty 0, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+  [menu_item scope vs WINDOW] menubar distinct names=189 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=189 rest distinct names=1515 intersection=1 (non-empty 0, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+
+--- com.apple.Safari pid=55322 ---
+  menubar:      3164 nodes, 3080 named, collect=290.2ms caps=-
+  window:       1150 nodes, 1108 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=226.4ms
+  [all nodes vs WINDOW] menubar distinct names=1910 rest distinct names=219 intersection=18 (non-empty 17, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "<page-8>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "Claude Code"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText/AXWindow
+    COLLIDE [cross-role] "Copy"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Edit"  menubar=AXMenuBarItem  window=AXButton
+    COLLIDE [cross-role] "GitHub"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Google"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Help"  menubar=AXMenuBarItem  window=AXHeading
+    COLLIDE [cross-role] "Home"  menubar=AXMenuItem  window=AXButton/AXLink
+    COLLIDE [cross-role] "<page-1>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "New Tab"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "OpenAI Platform"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-2>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-3>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText/AXWindow
+    COLLIDE [cross-role] "<page-4>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText/AXWindow
+    COLLIDE [cross-role] "<page-5>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-6>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-7>"  menubar=AXMenuItem  window=AXLink
+  [menu_item scope vs WINDOW] menubar distinct names=1909 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=1910 rest distinct names=219 intersection=18 (non-empty 17, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "<page-8>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "Claude Code"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText/AXWindow
+    COLLIDE [cross-role] "Copy"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Edit"  menubar=AXMenuBarItem  window=AXButton
+    COLLIDE [cross-role] "GitHub"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Google"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Help"  menubar=AXMenuBarItem  window=AXHeading
+    COLLIDE [cross-role] "Home"  menubar=AXMenuItem  window=AXButton/AXLink
+    COLLIDE [cross-role] "<page-1>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "New Tab"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "OpenAI Platform"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-2>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-3>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText/AXWindow
+    COLLIDE [cross-role] "<page-4>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText/AXWindow
+    COLLIDE [cross-role] "<page-5>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-6>"  menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+    COLLIDE [cross-role] "<page-7>"  menubar=AXMenuItem  window=AXLink
+
+--- com.mitchellh.ghostty pid=56969 ---
+  menubar:      255 nodes, 238 named, collect=24.3ms caps=-
+  window:       15 nodes, 4 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=9.7ms
+  [all nodes vs WINDOW] menubar distinct names=195 rest distinct names=3 intersection=2 (non-empty 2, of which same-role 0)
+    COLLIDE [cross-role] "<user-short>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "<terminal-title>"  menubar=AXMenuItem  window=AXStaticText/AXWindow
+  [menu_item scope vs WINDOW] menubar distinct names=195 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=195 rest distinct names=3 intersection=2 (non-empty 2, of which same-role 0)
+    COLLIDE [cross-role] "<user-short>"  menubar=AXMenuItem  window=AXImage
+    COLLIDE [cross-role] "<terminal-title>"  menubar=AXMenuItem  window=AXStaticText/AXWindow
+
+--- com.apple.ActivityMonitor pid=22686 ---
+  menubar:      268 nodes, 248 named, collect=70.4ms caps=-
+  window:       0 nodes, 0 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=0.0ms
+  [all nodes vs WINDOW] menubar distinct names=212 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [menu_item scope vs WINDOW] menubar distinct names=211 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=212 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+
+--- com.openai.codex pid=31044 ---
+  menubar:      234 nodes, 218 named, collect=24.5ms caps=-
+  window:       387 nodes, 382 named, caps=-
+  other AXMenuBar-role children: 8 nodes, 5 named
+  (window + other) collect=54.3ms
+  [all nodes vs WINDOW] menubar distinct names=178 rest distinct names=12 intersection=2 (non-empty 1, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "ChatGPT"  menubar=AXMenuBarItem/AXMenuItem  window=AXGroup/AXWindow
+  [menu_item scope vs WINDOW] menubar distinct names=178 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs OTHER MENU BARS] menubar distinct names=178 rest distinct names=4 intersection=2 (non-empty 1, of which same-role 1)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [SAME-ROLE] "Quit ChatGPT"  menubar=AXMenuItem  window=AXMenuItem
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=178 rest distinct names=15 intersection=3 (non-empty 2, of which same-role 1)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "ChatGPT"  menubar=AXMenuBarItem/AXMenuItem  window=AXGroup/AXWindow
+    COLLIDE [SAME-ROLE] "Quit ChatGPT"  menubar=AXMenuItem  window=AXMenuItem
+
+--- com.microsoft.VSCode pid=41289 ---
+  menubar:      512 nodes, 476 named, collect=43.3ms caps=-
+  window:       186 nodes, 181 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=24.9ms
+  [all nodes vs WINDOW] menubar distinct names=377 rest distinct names=3 intersection=3 (non-empty 2, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "Search"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "<file-9>"  menubar=AXMenuItem  window=AXGroup/AXImage/AXWebArea/AXWindow
+  [menu_item scope vs WINDOW] menubar distinct names=376 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=377 rest distinct names=3 intersection=3 (non-empty 2, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "Search"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "<file-9>"  menubar=AXMenuItem  window=AXGroup/AXImage/AXWebArea/AXWindow
+
+--- com.apple.Photos pid=42101 ---
+  menubar:      468 nodes, 424 named, collect=145.4ms caps=-
+  window:       293 nodes, 125 named, caps=-
+  other AXMenuBar-role children: 0 nodes, 0 named
+  (window + other) collect=266.0ms
+  [all nodes vs WINDOW] menubar distinct names=331 rest distinct names=82 intersection=34 (non-empty 33, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "Activity"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Albums"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "All Albums"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Collections"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Documents"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Duplicates"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Favorite"  menubar=AXMenuItem  window=AXCheckBox
+    COLLIDE [cross-role] "Favorites"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<person-1>"  menubar=AXMenuItem  window=AXList/AXStaticText
+    COLLIDE [cross-role] "Handwriting"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Illustrations"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Imports"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Info"  menubar=AXMenuItem  window=AXCheckBox
+    COLLIDE [cross-role] "Library"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Map"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Media Types"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "People & Pets"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Pinned"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Projects"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Receipts"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Deleted"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Edited"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Saved"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Shared"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Viewed"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Screenshots"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Shared Albums"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Shared with You"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Sharing"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Slideshow"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Utilities"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Videos"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "iCloud Links"  menubar=AXMenuItem  window=AXStaticText
+  [menu_item scope vs WINDOW] menubar distinct names=331 rest distinct names=0 intersection=0 (non-empty 0, of which same-role 0)
+  [all nodes vs WINDOW+OTHER (the raw AXChildren remainder)] menubar distinct names=331 rest distinct names=82 intersection=34 (non-empty 33, of which same-role 0)
+    (the empty-string name "" is in both — separators and unnamed nodes)
+    COLLIDE [cross-role] "Activity"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Albums"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "All Albums"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Collections"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Documents"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Duplicates"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Favorite"  menubar=AXMenuItem  window=AXCheckBox
+    COLLIDE [cross-role] "Favorites"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "<person-1>"  menubar=AXMenuItem  window=AXList/AXStaticText
+    COLLIDE [cross-role] "Handwriting"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Illustrations"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Imports"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Info"  menubar=AXMenuItem  window=AXCheckBox
+    COLLIDE [cross-role] "Library"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Map"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Media Types"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "People & Pets"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Pinned"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Projects"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Receipts"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Deleted"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Edited"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Saved"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Shared"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Recently Viewed"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Screenshots"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Shared Albums"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Shared with You"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Sharing"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Slideshow"  menubar=AXMenuItem  window=AXButton
+    COLLIDE [cross-role] "Utilities"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "Videos"  menubar=AXMenuItem  window=AXStaticText
+    COLLIDE [cross-role] "iCloud Links"  menubar=AXMenuItem  window=AXStaticText
+

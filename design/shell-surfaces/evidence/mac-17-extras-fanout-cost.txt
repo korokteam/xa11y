@@ -1,0 +1,116 @@
+# mac-17 — cost of fanning AXExtrasMenuBar out over every running process,
+# and what an unresponsive process costs.
+# macOS 26.5.2 (25F84), arm64, attended session, screen unlocked.
+
+########################################################################
+## A. Default messaging timeout.
+##    Command: REPEAT=3 swift shell-probe.swift extrascost
+########################################################################
+AXIsProcessTrusted = true
+
+=== AXExtrasMenuBar fan-out cost over 99 processes, 3 rounds ===
+messaging timeout = system default (no AXUIElementSetMessagingTimeout call)
+
+round 1: total=7469.1ms for 99 processes (mean 75.4ms) hits=4
+    slowest: 1505.5ms  com.apple.WebKit.WebContent pid=56016 hit=false
+    slowest: 1505.4ms  com.apple.WebKit.WebContent pid=41164 hit=false
+    slowest: 1505.0ms  com.apple.WebKit.WebContent pid=43342 hit=false
+    slowest: 1503.4ms  com.apple.WebKit.WebContent pid=34077 hit=false
+    slowest: 35.3ms  com.apple.loginwindow pid=609 hit=false
+    slowest: 27.2ms  com.apple.talagent pid=41174 hit=false
+    slowest: 26.9ms  com.apple.Photos pid=42101 hit=false
+    slowest: 26.6ms  com.apple.TextInputMenuAgent pid=2259 hit=false
+    queries over 100ms: 4
+
+round 2: total=6029.6ms for 99 processes (mean 60.9ms) hits=4
+    slowest: 1503.6ms  com.apple.WebKit.WebContent pid=43342 hit=false
+    slowest: 1502.1ms  com.apple.WebKit.WebContent pid=56016 hit=false
+    slowest: 1502.1ms  com.apple.WebKit.WebContent pid=34077 hit=false
+    slowest: 1502.0ms  com.apple.WebKit.WebContent pid=41164 hit=false
+    slowest: 0.5ms  com.apple.iCal pid=44518 hit=false
+    slowest: 0.4ms  com.apple.photolibraryd pid=34673 hit=false
+    slowest: 0.4ms  com.apple.WebKit.WebContent pid=34116 hit=false
+    slowest: 0.4ms  com.apple.dock.external.extra.arm64 pid=58200 hit=false
+    queries over 100ms: 4
+
+round 3: total=6029.0ms for 99 processes (mean 60.9ms) hits=4
+    slowest: 1505.1ms  com.apple.WebKit.WebContent pid=41164 hit=false
+    slowest: 1503.5ms  com.apple.WebKit.WebContent pid=56016 hit=false
+    slowest: 1502.0ms  com.apple.WebKit.WebContent pid=34077 hit=false
+    slowest: 1500.3ms  com.apple.WebKit.WebContent pid=43342 hit=false
+    slowest: 0.6ms  com.apple.photolibraryd pid=34673 hit=false
+    slowest: 0.5ms  com.apple.iCal pid=44518 hit=false
+    slowest: 0.4ms  com.openai.codex pid=31044 hit=true
+    slowest: 0.3ms  com.apple.WebKit.WebContent pid=34116 hit=false
+    queries over 100ms: 4
+
+########################################################################
+## B. AXUIElementSetMessagingTimeout(el, 0.25) applied to each element
+##    immediately before its query.
+##    Command: REPEAT=2 swift shell-probe.swift extrascost 0.25
+########################################################################
+AXIsProcessTrusted = true
+
+=== AXExtrasMenuBar fan-out cost over 98 processes, 2 rounds ===
+AXUIElementSetMessagingTimeout = 0.25s, applied to each element before its query
+
+round 1: total=2432.1ms for 98 processes (mean 24.8ms) hits=4
+    slowest: 255.4ms  com.apple.WebKit.WebContent pid=34077 hit=false
+    slowest: 255.3ms  com.apple.WebKit.WebContent pid=43342 hit=false
+    slowest: 254.7ms  com.apple.WebKit.WebContent pid=41164 hit=false
+    slowest: 252.7ms  com.apple.WebKit.WebContent pid=56016 hit=false
+    slowest: 34.0ms  com.apple.loginwindow pid=609 hit=false
+    slowest: 27.0ms  com.apple.WebKit.WebContent pid=34116 hit=false
+    slowest: 27.0ms  com.apple.appkit.xpc.ThemeWidgetControlViewService pid=44163 hit=false
+    slowest: 26.6ms  com.apple.dock.external.extra.arm64 pid=58200 hit=false
+    queries over 100ms: 4
+
+round 2: total=1031.7ms for 98 processes (mean 10.5ms) hits=4
+    slowest: 255.1ms  com.apple.WebKit.WebContent pid=43342 hit=false
+    slowest: 255.0ms  com.apple.WebKit.WebContent pid=41164 hit=false
+    slowest: 253.4ms  com.apple.WebKit.WebContent pid=56016 hit=false
+    slowest: 251.0ms  com.apple.WebKit.WebContent pid=34077 hit=false
+    slowest: 0.5ms  com.apple.photolibraryd pid=34673 hit=false
+    slowest: 0.4ms  com.openai.codex pid=31044 hit=true
+    slowest: 0.3ms  com.apple.WebKit.WebContent pid=34116 hit=false
+    slowest: 0.3ms  com.apple.controlcenter pid=1058 hit=true
+    queries over 100ms: 4
+
+########################################################################
+## C. Controlled unresponsive app: SIGSTOP Activity Monitor, time each
+##    individual attribute query, SIGCONT.
+##    Command: swift shell-probe.swift timeone <pid> [timeout-secs]
+########################################################################
+--- C1 control: pid=22686 running normally ---
+pid=22686 (com.apple.ActivityMonitor)
+  AXRole: 29.7ms -> present
+  AXMenuBar: 0.1ms -> present
+  AXExtrasMenuBar: 0.1ms -> nil
+  AXChildren: 8.7ms -> present
+  AXUIElementCopyAttributeNames: 1.3ms -> 19 names
+
+--- C2 after kill -STOP 22686 (process state T) ---
+ps state = T   
+pid=22686 (com.apple.ActivityMonitor)
+  AXRole: 1512.8ms -> nil
+  AXMenuBar: 1500.4ms -> nil
+  AXExtrasMenuBar: 1504.5ms -> nil
+  AXChildren: 1502.8ms -> nil
+  AXUIElementCopyAttributeNames: 1502.5ms -> 0 names
+
+--- C3 still stopped, messaging timeout set to 0.25s ---
+pid=22686 (com.apple.ActivityMonitor)
+  AXRole: 264.1ms -> nil
+  AXMenuBar: 252.4ms -> nil
+  AXExtrasMenuBar: 255.1ms -> nil
+  AXChildren: 254.1ms -> nil
+  AXUIElementCopyAttributeNames: 251.2ms -> 0 names
+
+--- C4 after kill -CONT 22686 (restored) ---
+ps state = S   
+pid=22686 (com.apple.ActivityMonitor)
+  AXRole: 35.0ms -> present
+  AXMenuBar: 0.1ms -> present
+  AXExtrasMenuBar: 0.1ms -> nil
+  AXChildren: 0.6ms -> present
+  AXUIElementCopyAttributeNames: 0.8ms -> 19 names

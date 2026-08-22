@@ -7,7 +7,8 @@ scope; they are already covered.
 
 **Status:** Windows measured. Linux measured. macOS measured — on macOS 26.5.2 (25F84),
 arm64, in an attended session with Accessibility granted. Raw dumps in
-`evidence/mac-*.txt`.
+`evidence/mac-*.txt`. §4.8 additionally measures the one open API question the rest of the
+report left unanswered: what actually happens if the macOS `AXMenuBar` child filter is lifted.
 
 Everything below marked *measured* has raw output in `evidence/`. Everything marked
 *unverified* is exactly that.
@@ -39,6 +40,16 @@ swift shell-probe.swift hittest 100 900
 swift shell-probe.swift showmenu com.apple.dock Finder
 swift shell-probe.swift press com.apple.controlcenter id:com.apple.menuextra.controlcenter
 swift shell-probe.swift dismiss                 # Escape, to close a flyout a probe opened
+
+# macOS §4.8 — the AXMenuBar child-filter question
+swift shell-probe.swift lockcheck               # do this FIRST; a locked screen invalidates the rest
+REPEAT=3 DEPTHCAP=200 swift shell-probe.swift census    # menu-bar vs rest-of-tree size, depth, timing
+swift shell-probe.swift collide                 # name-set intersection, menu bar vs window content
+swift shell-probe.swift lazy com.apple.Safari Bookmarks # cold counts, AXPress, re-count (MUTATES)
+swift shell-probe.swift applist                 # current vs proposed app list, symmetric difference
+REPEAT=3 swift shell-probe.swift extrascost     # fan-out cost, default messaging timeout
+swift shell-probe.swift extrascost 0.25         # ... with AXUIElementSetMessagingTimeout
+swift shell-probe.swift timeone <pid> [secs]    # per-attribute timing; pair with SIGSTOP/SIGCONT
 ```
 
 ### Environment caveats that limit the macOS results
@@ -575,6 +586,373 @@ stages, and a surface reachable by pid can be unreachable by name.
   22 of 67 processes had a live `AXMenuBar`. "The menu bar" is per-application, which is
   why a single `system_menu_bar()` does not fit even the platform it was named for.
 
+### 4.8 Lifting the `AXMenuBar` child filter — measured
+
+§1 and §6.2 treated the macOS tree gate as settled ("delete three lines"). It was not
+measured. This section measures it: how big a real menu bar is, what fraction of an app
+tree it is, whether it is lazy, and whether its names collide with window content. Same
+machine, macOS 26.5.2 (25F84), attended, Accessibility granted, screen unlocked and held
+awake with `caffeinate -d` throughout (§4.8.7 explains why that last clause is load-bearing).
+
+The sample is the ten `activationPolicy == .regular` apps that happened to be running:
+Safari, VS Code, Photos and Simplenote as the heavy end, Ghostty, Messages, Finder,
+Activity Monitor, ChatGPT (`com.openai.codex`) and Calendar as the light end, plus
+Calculator launched cold for §4.8.3 and quit afterwards. Seven new probe subcommands
+produced the numbers: `census`, `collide`, `lazy`, `applist`, `extrascost`, `timeone` and
+`lockcheck`.
+
+#### 4.8.1 `AXMenuBar` really is a child — and it is not the only one
+
+Measured (`mac-13`): for all nine apps with a live menu bar, the element returned by the
+`AXMenuBar` **attribute** is also present in the app element's `AXChildren`, verified by
+`CFEqual`, at index 0–3 of 1–4. So the filter at `ax.rs:1759` is load-bearing: lifting it
+changes the tree.
+
+It also does more than its name suggests. The filter keys on `child_role == "AXMenuBar"`,
+and **`AXExtrasMenuBar` is an `AXMenuBar`-role child too**. ChatGPT is the case in the
+sample (`mac-13`):
+
+```
+com.openai.codex  AXChildren = 3 roles=[AXWindow,AXMenuBar,AXMenuBar]
+  child[1] role=AXMenuBar == AXMenuBar attribute       frame=[0,0 1920x38]   subtree=234
+  child[2] role=AXMenuBar == AXExtrasMenuBar attribute frame=[1549,7 24x24]  subtree=8
+```
+
+> **Design consequence.** Lifting the filter is not one change, it is two. For any app that
+> vends a status item *and* is already nameable, the status item and its whole menu arrive
+> in `app.tree()` at the same moment the menu bar does — no change to `list_gui_apps()`
+> required. §1 concluded that the status-item gap needs app-discovery work; that is true
+> only for `LSUIElement` accessory apps. For regular apps with a status item, the tree
+> filter is the *only* thing in the way.
+
+#### 4.8.2 Size, depth and cost (`mac-13`)
+
+Three walks per app; node counts were identical across runs except where noted. Walk times
+are the range over three runs. "Window" is `AXChildren` minus every `AXMenuBar`-role child.
+
+| App | Menu bar nodes | Depth | Menu-bar walk | Window nodes | Window walk | Menu-bar share | `tree()` growth |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Activity Monitor *(no windows open)* | 264 | 5 | 22.7–35.9 ms | 0 | — | 99.6% | **265×** |
+| Ghostty | 255 | 5 | 7.0–7.6 ms | 15 | 0.6–9.7 ms | 94.1% | 16.9× |
+| Messages | 288 | 5 | 9.4–9.9 ms | 49–52 | 16.2–151.8 ms | 85.2% | 6.8× |
+| Safari | 3159 | 9 | 104.5–104.8 ms | 1150 | 86.7–156.1 ms | 73.3% | 3.7× |
+| VS Code | 508 | 7 | 12.0–12.4 ms | 186 | 5.5–18.7 ms | 73.1% | 3.7× |
+| Photos | 468 | 7 | 38.9–43.5 ms | 293 | 32.3–154.8 ms | 61.4% | 2.6× |
+| Finder | 348 | 5 | 9.4–12.5 ms | 442 | 33.3–97.9 ms | 44.0% | 1.8× |
+| ChatGPT | 234 | 5 | 7.8–22.5 ms | 387 (+8 extras) | 23.8–41.0 ms | 37.1% | 1.6× |
+| Simplenote | 244 | 5 | 6.4–10.5 ms | 3907 | **8742–42334 ms** | 5.9% | 1.06× |
+| Calendar | — | — | — | — | — | — | — |
+
+Reading the table:
+
+- **Menu bars are 234–3159 nodes, median 288, depth 5–9.** Every top-level item has exactly
+  one child (the `AXMenu`), so depth runs +2 per submenu level.
+- **Walking one is cheap in absolute terms: 6–105 ms**, and it is the *cheapest part of the
+  tree per node* — 0.024–0.086 ms/node, against 0.075–0.11 ms/node for typical window
+  content and 2.2–10.8 ms/node for Simplenote's.
+- **But it is a large fraction of the tree: median share 73%, median growth 3.7×.** The
+  extremes are the interesting ones. Activity Monitor was running with no windows open, so
+  its tree today is a bare `AXApplication` with zero children; lifting the filter takes it
+  from 0 to 264 nodes. Simplenote, at the other end, grows 6%.
+- **Simplenote's window walk is the only pathological cost in the set**, and it is nothing
+  to do with menu bars: 3907 nodes in 8.7–42.3 s, reproduced across two separate census
+  runs. Same node count every time; the wall clock varies almost fivefold run to run.
+- **Calendar is a regular app with no AX connection at all** — `AXUIElementCopyAttributeNames`
+  returns `[]` and `AXChildren` is empty, so there is no menu bar to expose and nothing to
+  filter. It is not a permissions failure; the other nine apps answered fine in the same
+  process. This **contradicts** the working assumption carried into this section — that every
+  `activationPolicy == .regular` app has a live `AXMenuBar` (§4.1 measured 9 of 9 on an earlier
+  process set). On this set it is 9 of 10, and the exception is an ordinary first-party Apple
+  app that was running and had been used. "Regular app ⇒ has a menu bar" is not safe to assume.
+
+Safari's menu bar measured 3155–3169 nodes across the committed runs. The variation is
+confined to the File and History menus — menu content settling as the app is used, not
+measurement noise; repeated back-to-back walks stop changing it.
+
+Where the size actually comes from (`mac-14`, Safari, cold, no press):
+
+```
+"Apple" 72   "Safari" 30   "File" 85   "Edit" 84   "View" 110
+"History" 400   "Bookmarks" 2244   "Develop" 69   "Window" 65   "Help" 9      (total 3165)
+```
+
+**Bookmarks alone is 2244 of 3165 nodes — 71% of Safari's menu bar, and 52% of its entire tree.**
+
+> **Design consequence.** Menu-bar size is not a property of the application, it is a
+> property of the *user's data*. Safari's menu bar is an order of magnitude larger than
+> every other app in the sample purely because of one person's bookmark tree, and it is
+> 8 levels deep for the same reason. Any budget, depth cap, truncation rule or "this tree
+> is too big" heuristic that is calibrated against a stock app will be wrong on a real one.
+> The same fact has a privacy edge: bookmark titles, Recent Items and open-document names
+> all become part of a routine `tree()` dump the moment the filter comes off.
+
+#### 4.8.3 Menu bars are eager (`mac-14`)
+
+Cold-walk the menu bar, `AXPress` a top-level menu, re-walk, diff. Measured on Safari
+(`Bookmarks`, the 2244-node 8-deep case), VS Code (Electron), Activity Monitor, and
+Calculator launched fresh for the test:
+
+| App | Menu pressed | Cold | After press | Pressed menu's own subtree |
+|---|---|---:|---:|---|
+| Safari | Bookmarks | 3169 | 3166 | 2244 → 2244, unchanged |
+| VS Code | File | 512 | 512 | 59 → 59, unchanged |
+| Activity Monitor | View | 268 | 268 | 71 → 71, unchanged |
+| Calculator *(first AX contact after launch)* | View | 207 | 211 | 30 → 30, unchanged |
+| Calculator *(immediately after)* | View | 211 | 211 | 30 → 30, unchanged |
+
+**The pressed menu never changed, in any app, including 8-deep nested submenus.** Submenu
+contents are fully present with the menu shut.
+
+The one delta is not the pressed menu. On an app's first AX contact after launch, the
+**Help** menu grows by exactly 4 nodes — macOS injecting the Help search field — and then
+stays. Calculator is the recorded case, and the reason it was launched: Help is 3 nodes cold,
+7 after the first press, 7 for every run thereafter. The same +4 was seen on Activity Monitor
+(3 → 7) and VS Code (23 → 27) earlier in the session, but both were already warm by the time
+`mac-14` was captured, so **only Calculator's transition is in the evidence**; the other two
+appear there in their steady state, at delta 0. Safari's ±3 is History churn, not submenu
+materialisation.
+
+> **Design consequence.** The Windows tray finding (§2.3) and the Control Center finding
+> (§4.4) do not generalise to menu bars. A menu-bar `tree()` is read-only and complete, so
+> the walk cost in §4.8.2 is the real cost, not a floor — there is no deferred expansion
+> waiting to be paid on first `press`. This is the one shell surface measured in this report
+> where "dump is read-only and total" is simply true.
+
+#### 4.8.4 Name collision — zero, at the scope that matters (`mac-15`)
+
+This was the blocker. For each app, the set of xa11y `name` values (computed with xa11y's own
+rule from `ax.rs:1543`: `AXTitle`, else `AXValue` when the role is `AXStaticText`, else
+`AXDescription`) in the menu-bar subtree, intersected with the same set over window content —
+once over all nodes, once restricted to the AX roles that map to `Role::MenuItem`
+(`AXMenuItem` / `AXMenuBarItem`, `ax.rs:1024`).
+
+| App | Menu-bar names | Window names | ∩ all nodes | of which **same-role** | ∩ `menu_item` scope |
+|---|---:|---:|---:|---:|---:|
+| Messages | 217 | 28 | 1 | **0** | 0 |
+| Finder | 254 | 70 | 16 | **0** | 0 |
+| Simplenote | 189 | 1515 | 0 | **0** | 0 |
+| Safari | 1910 | 219 | 17 | **0** | 0 |
+| Ghostty | 195 | 3 | 2 | **0** | 0 |
+| Activity Monitor | 212 | 0 | 0 | **0** | 0 |
+| ChatGPT | 178 | 12 | 1 | **0** | 0 |
+| VS Code | 377 | 3 | 2 | **0** | 0 |
+| Photos | 331 | 82 | 33 | **0** | 0 |
+| **Total** | | | **72** | **0** | **0** |
+
+Two things fall out, and they point in opposite directions.
+
+**Role-scoped selectors cannot break.** Measured: in all nine apps the window side contributed
+**zero** `AXMenuItem`/`AXMenuBarItem` nodes — not zero matching names, zero such nodes at all.
+So `menu_item[name="Open"]` has nothing in window content to match today, and lifting the
+filter gives it menu-bar items to match where it previously matched nothing. That is a
+behaviour change, but it cannot *steal* a match from an existing selector, because there was
+no match to steal. (The likely reason is that a popup button's menu and a context menu are
+instantiated only while open, so they are absent from a cold tree — consistent with the
+Control Center result in §4.4, but not separately verified here: **unverified**.)
+
+**Unscoped selectors do gain matches — 72 of them.** Every one is cross-role. The shape is
+always the same: a menu item whose name equals a piece of window chrome with a different role.
+
+```
+Finder   COLLIDE [cross-role] "Documents"   menubar=AXMenuItem  window=AXStaticText
+Finder   COLLIDE [cross-role] "Eject"       menubar=AXMenuItem  window=AXButton
+Photos   COLLIDE [cross-role] "Albums"      menubar=AXMenuItem  window=AXStaticText
+Safari   COLLIDE [cross-role] "New Tab"     menubar=AXMenuItem  window=AXButton
+Safari   COLLIDE [cross-role] "<page-1>"    menubar=AXMenuItem  window=AXRadioButton/AXStaticText
+```
+
+Photos is the worst case at 33 — its View menu names the same collections its sidebar does.
+Safari's 17 are page titles appearing in both the History menu and the tab strip. Finder's 16
+are the Go menu against the sidebar.
+
+There is exactly **one same-role collision in the whole data set**, and it is not
+menu-bar-versus-window at all: ChatGPT's `"Quit ChatGPT"` appears as an `AXMenuItem` in both
+its application menu bar and its status-item menu. Both are `AXMenuBar`-role children, both
+are dropped by the same filter today, and both reappear together — so it is a collision the
+filter change creates *within* the newly-exposed material, not against anything users can
+currently select.
+
+> **Design consequence.** The premise that motivated gating this — "users write
+> `menu_item[name="Open"]` against in-window menus today" — does not hold on macOS. It
+> cannot: cold app trees contain no `menu_item` nodes at all. The role-scoped selector story
+> is safe to lift unconditionally. The exposure is entirely in **unscoped, name-only**
+> selectors, where 72 name clashes across nine apps come into existence and first-match
+> ordering starts to matter. If anything is gated, that is the thing to gate — not the filter.
+
+#### 4.8.5 The proposed app list is not a superset (`mac-16`)
+
+Building the app list two ways on the same machine, at the same moment. Current =
+`CGWindowListCopyWindowInfo` owner pids with a non-empty owner name. Proposed =
+`NSWorkspace.runningApplications` filtered to `.regular`, plus any pid with a non-nil
+`AXExtrasMenuBar` (probed across all 99 running applications: 10 regular, 50 accessory,
+39 prohibited).
+
+```
+current = 37 pids     proposed = 13 pids
+DISAPPEAR 26     APPEAR 2     IN BOTH 11
+```
+
+**The proposed rule is a net loss of 24 apps.** The two that appear are the expected win and
+an unexpected wart:
+
+| Appears | Why | AX children |
+|---|---|---:|
+| `com.haystacksoftware.ArqMonitor` | status-item-only accessory app — the §1 gap, fixed | 2 |
+| `com.apple.iCal` | `.regular`, but owns no CG window | **0** |
+
+The 26 that disappear are not all noise. Twelve are `activationPolicy == .prohibited` XPC
+view services with zero AX children (`ThemeWidgetControlViewService` ×7,
+`nsattributedstringagent` ×2, `QuickLookUIService`, `openAndSavePanelService`,
+`SandboxBroker`) — dropping those is an improvement. But the list also loses:
+
+```
+pid=1223  com.apple.dock                  axChildren=1  cgOwnerName="Dock"
+pid=1096  com.apple.notificationcenterui  axChildren=3  cgOwnerName="Notification Center"
+pid=966   com.apple.wifi.WiFiAgent        axChildren=1  cgOwnerName="Wi-Fi"
+pid=1023  com.apple.AccessibilityUIServer axChildren=1  cgOwnerName="Accessibility"
+pid=11675 com.apple.UserNotificationCenter axChildren=1
+pid=27529 com.google.chrome.for.testing   axChildren=1  (policy=2)
+```
+
+The Dock and Notification Center are exactly the surfaces §4.2, §4.5 and §4.7 spent the most
+effort establishing as valuable and already reachable. A wholesale swap would remove them.
+
+> **Design consequence.** `list_gui_apps()` should be a **union**, not a replacement:
+> keep the `CGWindowListCopyWindowInfo` basis and add `.regular` apps and live-`AXExtrasMenuBar`
+> pids on top. Two riders from the measurement. First, dedupe by pid — 11 apps are in both
+> lists. Second, whatever rule ships will admit AX-empty entries: `iCal` arrives with zero
+> children under the proposed rule, and 12 of the current list's entries have zero children
+> today, so "appears in `apps`" already does not imply "has a tree". Screen Recording is
+> still what gates the CG half of that union (§4.6), so on a machine without it the union
+> degrades to the `NSWorkspace` half rather than to nothing — which is an argument for the
+> union independent of the app counts.
+
+#### 4.8.6 Fan-out cost, and what an unresponsive process costs (`mac-17`)
+
+Querying `AXExtrasMenuBar` on every running application, three rounds:
+
+| | Total | Mean/process | Hits | Queries > 100 ms |
+|---|---:|---:|---:|---:|
+| Default messaging timeout, round 1 (cold) | 7469 ms | 75.4 ms | 4 | 4 |
+| Default, rounds 2–3 (warm) | 6030 ms | 60.9 ms | 4 | 4 |
+| `AXUIElementSetMessagingTimeout` = 0.25 s, round 1 | 2546 ms | 25.7 ms | 4 | 4 |
+| = 0.25 s, round 2 | 1035 ms | 10.5 ms | 4 | 4 |
+
+**Yes, queries block.** Four `com.apple.WebKit.WebContent` processes took ~1500 ms each,
+every round, and returned nothing. They are ~6.0 s of the ~6.0 s warm total: the other 95
+processes together cost tens of milliseconds. Dropping the timeout to 250 ms cuts the total
+by 5.8× and loses no hits.
+
+Isolating it with a deliberately unresponsive process — `SIGSTOP` on Activity Monitor, then
+`SIGCONT`:
+
+| Query | Running | SIGSTOPped | SIGSTOPped, 0.25 s timeout | After SIGCONT |
+|---|---:|---:|---:|---:|
+| `AXRole` | 36.2 ms | 1511.4 ms | 266.7 ms | 29.5 ms |
+| `AXMenuBar` | 0.1 ms | 1505.1 ms | 255.1 ms | 0.1 ms |
+| `AXExtrasMenuBar` | 0.1 ms | 1504.5 ms | 251.1 ms | 0.1 ms |
+| `AXChildren` | 0.4 ms | 1504.6 ms | 251.1 ms | 0.3 ms |
+| `AXUIElementCopyAttributeNames` | 0.2 ms | 1500.7 ms | 255.1 ms | 0.3 ms |
+
+The default timeout is ~1.5 s and it is **per attribute query, not per process**. Every
+attribute times out independently and returns nil, indistinguishable from "this app has no
+menu bar".
+
+> **Design consequence.** Two things follow. A discovery pass that fans out over processes
+> must set `AXUIElementSetMessagingTimeout` on the element it is about to query — setting it
+> on a throwaway element built from the same pid does nothing, which is a mistake this probe
+> made and had to be corrected. And a *walk* of an unresponsive app is not a 1.5 s tax, it is
+> 1.5 s per node, so a tree walk needs a whole-operation deadline, not just a per-message one.
+> Nil-on-timeout being indistinguishable from nil-because-absent also means a status-item
+> scan cannot tell "no status item" from "app is wedged" without checking the error code.
+
+#### 4.8.7 A locked screen destroys window subtrees — but not menu bars (`mac-18`)
+
+The first census run straddled an automatic screen lock, and the numbers were wrong in a way
+worth recording. With `CGSSessionScreenIsLocked = 1`, **every window child of every regular
+app is returned as the `AXApplication` element itself**:
+
+```
+LOCKED    com.apple.Safari  childRoles=[AXApplication,AXApplication,AXApplication,AXMenuBar]  selfRefChildren=3
+UNLOCKED  com.apple.Safari  childRoles=[AXWindow,AXWindow,AXWindow,AXMenuBar]                 selfRefChildren=0
+```
+
+Nine of ten apps were affected (Activity Monitor had no windows to corrupt). `AXChildren`
+stops being a tree and becomes a cycle, so an unguarded recursive walk runs to whatever depth
+limit it is given and inflates counts by two to three orders of magnitude — Safari's window
+side measured 400002 nodes at depth 200 locked, against 1150 at depth 20 unlocked; VS Code
+99243 against 186. Same pids, minutes apart, nothing else changed.
+
+**Menu bars are untouched by this.** Every menu-bar count in the locked capture matches the
+unlocked one to within the ordinary drift, and `AXScrollArea desc="desktop"` under Finder
+survives too. The menu bar is the only part of an app tree in this sample that a locked
+screen leaves intact.
+
+> **Design consequence.** Independent of the filter question: `get_children` on macOS needs
+> a cycle guard. An element appearing in its own ancestor chain is reachable in a completely
+> ordinary state — a locked screen on an attended machine — and today's walk has nothing to
+> stop it. It also sharpens §6.8's testability point in an unexpected direction: an
+> unattended CI runner that locks its screen would produce menu-bar assertions that pass and
+> window assertions that hang or explode, which is a worse failure than a clean refusal.
+
+#### 4.8.8 What the numbers say about the decision
+
+Measured, the filter-lift is **safer than the framing assumed and more visible than it
+assumed**, for the same reason: menu bars are big, and window content has nothing that looks
+like them.
+
+Clears the lift:
+
+- Role-scoped `menu_item` selectors have **zero** collisions with window content across nine
+  apps — window content in all nine contained no `menu_item`-role nodes at all, so there is
+  no existing match for a menu-bar item to displace (§4.8.4).
+- Menu bars are **eager and complete** — no deferred cost, no mutation on read (§4.8.3).
+- The walk is cheap in absolute terms, 6–105 ms, and the cheapest part of the tree per node
+  (§4.8.2).
+- The filter is load-bearing and lifting it also delivers the status item for regular apps,
+  with no `list_gui_apps()` change (§4.8.1).
+
+Argues for care, though not for gating the filter:
+
+- `tree()` grows by a median 3.7×, and the menu bar is a median 73% of the result. For a
+  windowless-but-running app the tree goes from empty to ~264 nodes (§4.8.2).
+- Menu-bar size is unbounded and user-data-driven: 2244 nodes of one user's bookmarks, 52% of
+  Safari's whole tree (§4.8.2).
+- 72 new **cross-role** name collisions appear across nine apps, so unscoped name-only
+  selectors change behaviour even though role-scoped ones do not (§4.8.4).
+
+The pressure the measurement actually found is not on the filter. It is on the two things
+either side of it: the **app list**, where the proposed rule loses the Dock and Notification
+Center and must be a union (§4.8.5), and **unscoped selectors**, which are where the 72
+collisions land. A gate on the filter would buy nothing that a role-scoped selector does not
+already give for free.
+
+#### 4.8.9 What these numbers do not cover
+
+- **One machine, one macOS version, one user's data.** macOS 26.5.2 (25F84), arm64, single
+  1920×1243-point display. No other macOS version was tested; nothing here distinguishes
+  macOS 26 behaviour from macOS 15 or earlier.
+- **Ten apps that happened to be running.** No Xcode, no Chrome (only `chrome-for-testing`,
+  which is `.prohibited` and was not in the regular set), no Microsoft Office, no Adobe, no
+  Qt or Java or Tk toolkit app, no app in a non-English locale, no app with a localised or
+  right-to-left menu bar. Electron is represented twice (VS Code, ChatGPT) and both had tiny
+  window trees, which is itself untested as a generalisation.
+- **Single-window, single-Space, single-display.** Menu bars were measured for the active
+  Space only. Multi-display menu bars, full-screen apps and Stage Manager were not exercised.
+- **Menu-bar contents were read, not driven.** No menu item was activated beyond opening a
+  top-level menu; `AXPick` on a leaf item was not tested, and neither was what the tree looks
+  like *while* a menu is open and tracking.
+- **Calendar's zero-AX state was observed, not explained.** It reproduced across every run in
+  this session, but its cause — launch state, a hung AX connection, an app-specific bug — was
+  not investigated, and no other app in the sample showed it.
+- **Simplenote's 8.7–42.3 s window walk was reproduced, not diagnosed.** The fivefold run-to-run
+  variance on an identical node count is unexplained.
+- **`tree()` growth is derived, not observed end-to-end.** The node counts are from a direct
+  AX walk in the probe, not from running xa11y with the filter removed. Whether xa11y's own
+  `get_children` path reproduces them — with its parallel `build_element_data` and its handle
+  cache — is **unverified**.
+- **No CI or headless control group.** The session was attended throughout. §4.8.7 suggests a
+  locked-screen runner behaves badly, but an actual headless run was not performed.
 
 ## 5. Cross-platform comparison
 
@@ -714,6 +1092,13 @@ design/shell-surfaces/
   evidence/mac-10-empty-legacy-hosts.txt     SystemUIServer/WallpaperAgent empty; WindowManager
   evidence/mac-11-notification-center.txt    persistent desktop widget + a full Apple menu
   evidence/mac-12-press-results.txt          honest errors; press lands outside the target
+  evidence/mac-13-menubar-census.txt         §4.8 — menu-bar vs rest-of-tree nodes, depth, wall clock
+  evidence/mac-14-lazy-vs-eager.txt          §4.8 — submenus are present cold; the Help-menu +4
+  evidence/mac-15-name-collision.txt         §4.8 — name-set intersection, with roles on both sides
+  evidence/mac-16-applist-diff.txt           §4.8 — current vs proposed app list; the 26 that vanish
+  evidence/mac-17-extras-fanout-cost.txt     §4.8 — fan-out timing; a SIGSTOPped app costs 1.5s/query
+  evidence/mac-18-screenlock-tree-corruption.txt
+                                             §4.8 — locked screen: windows become the app element
   probes/windows/                            Rust UIA probe (windows-rs 0.62); excluded from the
                                              cargo workspace in the root Cargo.toml
   probes/linux/                              Dockerfile + AT-SPI dumper + dual-protocol tray app
@@ -730,6 +1115,14 @@ longer matches the `AXApplication` root by title, which it previously did: the f
 at `press com.apple.controlcenter "Control Center"` hit the *process* rather than the menu
 extra, and returned a perfectly honest `-25206` for the wrong element.
 
+Seven more were added for §4.8, for the same reason: `census` (menu-bar vs rest-of-tree node
+counts, depth and wall clock), `collide` (name-set intersection with the AX role on each
+side), `lazy` (cold counts, `AXPress`, re-count), `applist` (current vs proposed app list),
+`extrascost` (fan-out timing), `timeone` (per-attribute timing against one pid, for use with
+`SIGSTOP`), and `lockcheck` (screen-lock state, plus whether any app returns itself as its own
+child). The counting walks carry a cycle guard and `NODECAP`/`DEPTHCAP` bounds and report when
+either is hit — added after §4.8.7, where an unguarded walk of a locked-screen tree ran away.
+
 Machine-identifying strings in `evidence/` are redacted. On Windows: the Wi-Fi SSID appears as
 `<SSID>`, the user's home path as `C:\Users\<user>`, and one personal desktop file as
 `<redacted desktop item>`. On macOS: the Wi-Fi SSID as `<SSID>`, the weather widget's location
@@ -740,6 +1133,22 @@ Items — as `<file-N>` / `<folder-N>`, numbered consistently across all files s
 keeps the same placeholder. Application and bundle identifiers are **not** redacted: the
 finding in §1 depends on a real `LSUIElement` status-item app being nameable and checkable.
 Roles, subroles, identifiers, actions, attributes, frames and counts are untouched.
+
+The §4.8 evidence (`mac-13`..`mac-18`) follows the same rules and adds three placeholder
+kinds, because the menu bar surfaces material the earlier probes did not reach: browser tab,
+bookmark and history titles as `<page-1>`..`<page-8>`, a Photos album named after a family
+member as `<person-1>`, and the short account name (the home-folder name, distinct from the
+long user name already redacted as `<user>`) as `<user-short>`. Redaction there is applied to
+whole quoted AX names only, so generic words that happen to match a personal folder name —
+`Documents`, `images` — are replaced only where they are that item. Placeholders for the
+desktop items were **recovered and reused** rather than reassigned: the icon frames in
+`mac-04-finder-desktop.txt` are unique, so matching them against a fresh dump recovered the
+original `<file-1>`..`<file-5>` / `<folder-1>`..`<folder-10>` mapping, and those numbers carry
+over unchanged. Items outside that set got fresh numbers continuing from `<folder-20>` and
+`<file-9>`. One caveat on the consistency claim: `Recent Items` had churned since the first
+run, so the `<folder-14>`..`<folder-19>` / `<file-6>`..`<file-8>` mapping in `mac-11` could not
+be recovered, and an item appearing in both `mac-11` and the §4.8 evidence may carry a
+different number in each.
 
 Nothing else was altered.
 

@@ -1,0 +1,196 @@
+# mac-18 — what a locked screen does to the AX tree.
+# Command: swift shell-probe.swift lockcheck
+# macOS 26.5.2 (25F84), arm64, attended session, Accessibility granted.
+#
+# Found by accident: a census run straddled an automatic screen lock, and
+# every affected app's window children came back as the AXApplication
+# element itself. Both captures below are from the same session, same pids,
+# minutes apart; the only thing that changed is the lock.
+
+########################################################################
+## A. Screen LOCKED
+########################################################################
+AXIsProcessTrusted = true
+
+=== CGSSessionScreenIsLocked = 1 ===
+(1 = screen locked. Menu-bar subtrees stay intact either way; window subtrees do not.)
+
+com.apple.MobileSMS pid=1218 childRoles=[AXApplication,AXMenuBar] menubarNodes=288 selfRefChildren=1
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+com.apple.finder pid=1227 childRoles=[AXApplication,AXApplication,AXMenuBar,AXScrollArea] menubarNodes=348 selfRefChildren=2
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+    child[1] IS THE APP ELEMENT (role=AXApplication)
+com.automattic.SimplenoteMac pid=83106 childRoles=[AXApplication,AXMenuBar] menubarNodes=244 selfRefChildren=1
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+com.apple.Safari pid=55322 childRoles=[AXApplication,AXApplication,AXApplication,AXMenuBar] menubarNodes=3152 selfRefChildren=3
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+    child[1] IS THE APP ELEMENT (role=AXApplication)
+    child[2] IS THE APP ELEMENT (role=AXApplication)
+com.mitchellh.ghostty pid=56969 childRoles=[AXApplication,AXMenuBar] menubarNodes=255 selfRefChildren=1
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+com.apple.ActivityMonitor pid=22686 childRoles=[AXMenuBar] menubarNodes=264 selfRefChildren=0
+com.openai.codex pid=31044 childRoles=[AXApplication,AXMenuBar,AXMenuBar] menubarNodes=234 selfRefChildren=1
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+com.microsoft.VSCode pid=41289 childRoles=[AXApplication,AXMenuBar] menubarNodes=508 selfRefChildren=1
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+com.apple.Photos pid=42101 childRoles=[AXApplication,AXMenuBar] menubarNodes=468 selfRefChildren=1
+    child[0] IS THE APP ELEMENT (role=AXApplication)
+com.apple.iCal pid=44518 childRoles=[] menubarNodes=-1 selfRefChildren=0
+
+########################################################################
+## B. Same session, same pids, screen UNLOCKED
+########################################################################
+AXIsProcessTrusted = true
+
+=== CGSSessionScreenIsLocked = 0 ===
+(1 = screen locked. Menu-bar subtrees stay intact either way; window subtrees do not.)
+
+com.apple.MobileSMS pid=1218 childRoles=[AXWindow,AXMenuBar] menubarNodes=288 selfRefChildren=0
+com.apple.finder pid=1227 childRoles=[AXWindow,AXWindow,AXMenuBar,AXScrollArea] menubarNodes=348 selfRefChildren=0
+com.automattic.SimplenoteMac pid=83106 childRoles=[AXWindow,AXMenuBar] menubarNodes=244 selfRefChildren=0
+com.apple.Safari pid=55322 childRoles=[AXWindow,AXWindow,AXWindow,AXMenuBar] menubarNodes=3154 selfRefChildren=0
+com.mitchellh.ghostty pid=56969 childRoles=[AXWindow,AXMenuBar] menubarNodes=255 selfRefChildren=0
+com.apple.ActivityMonitor pid=22686 childRoles=[AXMenuBar] menubarNodes=264 selfRefChildren=0
+com.openai.codex pid=31044 childRoles=[AXWindow,AXMenuBar,AXMenuBar] menubarNodes=234 selfRefChildren=0
+com.microsoft.VSCode pid=41289 childRoles=[AXWindow,AXMenuBar] menubarNodes=508 selfRefChildren=0
+com.apple.Photos pid=42101 childRoles=[AXWindow,AXMenuBar] menubarNodes=468 selfRefChildren=0
+com.apple.iCal pid=44518 childRoles=[] menubarNodes=-1 selfRefChildren=0
+
+########################################################################
+## C. For contrast: the same census, run across the lock boundary.
+##    Node counts and depths in this capture are ARTEFACTS. It is kept
+##    only to show the failure mode — an unguarded walk runs to whatever
+##    depth cap it is given (here DEPTHCAP=200) and inflates the count by
+##    two to three orders of magnitude.
+##    Command: REPEAT=3 DEPTHCAP=200 swift shell-probe.swift census
+########################################################################
+AXIsProcessTrusted = true
+
+=== menu-bar vs rest-of-tree census — activationPolicy == .regular ===
+NODECAP=400000 DEPTHCAP=200 REPEAT=3
+node counts include the walk root; maxDepth is edges below the walk root.
+'rest' = the app element's AXChildren MINUS the AXMenuBar element, each recursed.
+total  = 1 (the AXApplication element) + menubar + rest.
+
+--- com.apple.MobileSMS pid=1218 ---
+  AXChildren = 2 roles=[AXWindow,AXMenuBar]
+    child[1] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=288
+  AXMenuBar attribute = present; returned in AXChildren = true (index 1 of 2)
+  AXMenuBar top-level items = 9: "Apple" "Messages" "File" "Edit" "View" "Conversation" "Format" "Window" "Help"
+  menubar run1: nodes=288 maxDepth=5 walk=6.5ms caps=-
+  menubar run2: nodes=288 maxDepth=5 walk=6.3ms caps=-
+  menubar run3: nodes=288 maxDepth=5 walk=8.0ms caps=-
+  rest    run1: nodes=49 maxDepth=9 walk=200.0ms caps=- (1 non-menubar children)
+  rest    run2: nodes=49 maxDepth=9 walk=17.2ms caps=- (1 non-menubar children)
+  rest    run3: nodes=49 maxDepth=9 walk=16.2ms caps=- (1 non-menubar children)
+  => menubar=288 rest=49 total=338 menubar share = 85.2% growth factor on tree() = 6.76x
+
+--- com.apple.finder pid=1227 ---
+  AXChildren = 4 roles=[AXWindow,AXWindow,AXMenuBar,AXScrollArea]
+    child[2] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=348
+  AXMenuBar attribute = present; returned in AXChildren = true (index 2 of 4)
+  AXMenuBar top-level items = 8: "Apple" "Finder" "File" "Edit" "View" "Go" "Window" "Help"
+  menubar run1: nodes=348 maxDepth=5 walk=16.2ms caps=-
+  menubar run2: nodes=348 maxDepth=5 walk=11.9ms caps=-
+  menubar run3: nodes=348 maxDepth=5 walk=8.8ms caps=-
+  rest    run1: nodes=442 maxDepth=9 walk=96.4ms caps=- (3 non-menubar children)
+  rest    run2: nodes=442 maxDepth=9 walk=61.7ms caps=- (3 non-menubar children)
+  rest    run3: nodes=442 maxDepth=9 walk=74.4ms caps=- (3 non-menubar children)
+  => menubar=348 rest=442 total=791 menubar share = 44.0% growth factor on tree() = 1.79x
+
+--- com.automattic.SimplenoteMac pid=83106 ---
+  AXChildren = 2 roles=[AXWindow,AXMenuBar]
+    child[1] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=244
+  AXMenuBar attribute = present; returned in AXChildren = true (index 1 of 2)
+  AXMenuBar top-level items = 8: "Apple" "Simplenote" "Note" "Edit" "View" "Format" "Window" "Help"
+  menubar run1: nodes=244 maxDepth=5 walk=30.1ms caps=-
+  menubar run2: nodes=244 maxDepth=5 walk=28.4ms caps=-
+  menubar run3: nodes=244 maxDepth=5 walk=24.1ms caps=-
+  rest    run1: nodes=3907 maxDepth=8 walk=51774.3ms caps=- (1 non-menubar children)
+  rest    run2: nodes=3907 maxDepth=8 walk=53430.2ms caps=- (1 non-menubar children)
+  rest    run3: nodes=1051 maxDepth=8 walk=490.5ms caps=- (1 non-menubar children)
+  => menubar=244 rest=1051 total=1296 menubar share = 18.8% growth factor on tree() = 1.23x
+
+--- com.apple.Safari pid=55322 ---
+  AXChildren = 4 roles=[AXApplication,AXApplication,AXApplication,AXMenuBar]
+    child[3] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=3128
+  AXMenuBar attribute = present; returned in AXChildren = true (index 3 of 4)
+  AXMenuBar top-level items = 10: "Apple" "Safari" "File" "Edit" "View" "History" "Bookmarks" "Develop" "Window" "Help"
+  menubar run1: nodes=3132 maxDepth=9 walk=103.5ms caps=-
+  menubar run2: nodes=3132 maxDepth=9 walk=112.5ms caps=-
+  menubar run3: nodes=3132 maxDepth=9 walk=105.9ms caps=-
+  rest    run1: nodes=400002 maxDepth=200 walk=7562.2ms caps=NODECAP+DEPTHCAP (3 non-menubar children)
+  rest    run2: nodes=400002 maxDepth=200 walk=7621.4ms caps=NODECAP+DEPTHCAP (3 non-menubar children)
+  rest    run3: nodes=400002 maxDepth=200 walk=7645.2ms caps=NODECAP+DEPTHCAP (3 non-menubar children)
+  => menubar=3132 rest=400002 total=403135 menubar share = 0.8% growth factor on tree() = 1.01x
+
+--- com.mitchellh.ghostty pid=56969 ---
+  AXChildren = 2 roles=[AXApplication,AXMenuBar]
+    child[1] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=255
+  AXMenuBar attribute = present; returned in AXChildren = true (index 1 of 2)
+  AXMenuBar top-level items = 7: "Apple" "Ghostty" "File" "Edit" "View" "Window" "Help"
+  menubar run1: nodes=255 maxDepth=5 walk=6.0ms caps=-
+  menubar run2: nodes=255 maxDepth=5 walk=7.4ms caps=-
+  menubar run3: nodes=255 maxDepth=5 walk=7.6ms caps=-
+  rest    run1: nodes=49965 maxDepth=200 walk=1519.4ms caps=DEPTHCAP (1 non-menubar children)
+  rest    run2: nodes=49965 maxDepth=200 walk=1519.3ms caps=DEPTHCAP (1 non-menubar children)
+  rest    run3: nodes=49965 maxDepth=200 walk=1512.6ms caps=DEPTHCAP (1 non-menubar children)
+  => menubar=255 rest=49965 total=50221 menubar share = 0.5% growth factor on tree() = 1.01x
+
+--- com.apple.ActivityMonitor pid=22686 ---
+  AXChildren = 1 roles=[AXMenuBar]
+    child[0] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=264
+  AXMenuBar attribute = present; returned in AXChildren = true (index 0 of 1)
+  AXMenuBar top-level items = 7: "Apple" "Activity Monitor" "File" "Edit" "View" "Window" "Help"
+  menubar run1: nodes=264 maxDepth=5 walk=31.4ms caps=-
+  menubar run2: nodes=264 maxDepth=5 walk=31.3ms caps=-
+  menubar run3: nodes=264 maxDepth=5 walk=35.9ms caps=-
+  rest    run1: nodes=0 maxDepth=0 walk=0.0ms caps=- (0 non-menubar children)
+  rest    run2: nodes=0 maxDepth=0 walk=0.0ms caps=- (0 non-menubar children)
+  rest    run3: nodes=0 maxDepth=0 walk=0.0ms caps=- (0 non-menubar children)
+  => menubar=264 rest=0 total=265 menubar share = 99.6% growth factor on tree() = 265.00x
+
+--- com.openai.codex pid=31044 ---
+  AXChildren = 3 roles=[AXApplication,AXMenuBar,AXMenuBar]
+    child[1] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=234
+    child[2] role=AXMenuBar == AXExtrasMenuBar attribute frame=[1549,7 24x24] subtree=8
+  AXMenuBar attribute = present; returned in AXChildren = true (index 1 of 3)
+  AXMenuBar top-level items = 7: "Apple" "ChatGPT" "File" "Edit" "View" "Window" "Help"
+  menubar run1: nodes=234 maxDepth=5 walk=10.3ms caps=-
+  menubar run2: nodes=234 maxDepth=5 walk=9.9ms caps=-
+  menubar run3: nodes=234 maxDepth=5 walk=8.6ms caps=-
+  rest    run1: nodes=47449 maxDepth=200 walk=2453.2ms caps=DEPTHCAP (2 non-menubar children)
+  rest    run2: nodes=47449 maxDepth=200 walk=2074.8ms caps=DEPTHCAP (2 non-menubar children)
+  rest    run3: nodes=47449 maxDepth=200 walk=2069.1ms caps=DEPTHCAP (2 non-menubar children)
+  => menubar=234 rest=47449 total=47684 menubar share = 0.5% growth factor on tree() = 1.00x
+
+--- com.microsoft.VSCode pid=41289 ---
+  AXChildren = 2 roles=[AXApplication,AXMenuBar]
+    child[1] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=508
+  AXMenuBar attribute = present; returned in AXChildren = true (index 1 of 2)
+  AXMenuBar top-level items = 11: "Apple" "Code" "File" "Edit" "Selection" "View" "Go" "Run" "Terminal" "Window" "Help"
+  menubar run1: nodes=508 maxDepth=7 walk=14.1ms caps=-
+  menubar run2: nodes=508 maxDepth=7 walk=14.2ms caps=-
+  menubar run3: nodes=508 maxDepth=7 walk=16.2ms caps=-
+  rest    run1: nodes=99243 maxDepth=200 walk=3070.8ms caps=DEPTHCAP (1 non-menubar children)
+  rest    run2: nodes=99243 maxDepth=200 walk=3084.0ms caps=DEPTHCAP (1 non-menubar children)
+  rest    run3: nodes=99243 maxDepth=200 walk=3084.7ms caps=DEPTHCAP (1 non-menubar children)
+  => menubar=508 rest=99243 total=99752 menubar share = 0.5% growth factor on tree() = 1.01x
+
+--- com.apple.Photos pid=42101 ---
+  AXChildren = 2 roles=[AXApplication,AXMenuBar]
+    child[1] role=AXMenuBar == AXMenuBar attribute frame=[0,0 1920x38] subtree=468
+  AXMenuBar attribute = present; returned in AXChildren = true (index 1 of 2)
+  AXMenuBar top-level items = 8: "Apple" "Photos" "File" "Edit" "Image" "View" "Window" "Help"
+  menubar run1: nodes=468 maxDepth=7 walk=36.7ms caps=-
+  menubar run2: nodes=468 maxDepth=7 walk=68.2ms caps=-
+  menubar run3: nodes=468 maxDepth=7 walk=66.9ms caps=-
+  rest    run1: nodes=91368 maxDepth=200 walk=11917.5ms caps=DEPTHCAP (1 non-menubar children)
+  rest    run2: nodes=91368 maxDepth=200 walk=7413.7ms caps=DEPTHCAP (1 non-menubar children)
+  rest    run3: nodes=91368 maxDepth=200 walk=10239.1ms caps=DEPTHCAP (1 non-menubar children)
+  => menubar=468 rest=91368 total=91837 menubar share = 0.5% growth factor on tree() = 1.01x
+
+--- com.apple.iCal pid=44518 ---
+  app element attrs=[] — no AX connection; skipping walks
+  AXChildren = 0
+

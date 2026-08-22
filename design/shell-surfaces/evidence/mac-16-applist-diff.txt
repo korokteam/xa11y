@@ -1,0 +1,59 @@
+# mac-16 — app list: current (CGWindowListCopyWindowInfo) vs proposed
+# (NSWorkspace .regular + any pid with a live AXExtrasMenuBar).
+# Command: swift shell-probe.swift applist
+# macOS 26.5.2 (25F84), arm64, attended session, Accessibility granted.
+# Screen UNLOCKED (CGSSessionScreenIsLocked = 0) for every measurement below —
+# see mac-18 for why that matters. `caffeinate -d` held the display awake so the
+# session could not re-lock mid-run.
+
+AXIsProcessTrusted = true
+
+=== app list: current (CGWindowList) vs proposed (regular + AXExtrasMenuBar) ===
+NSWorkspace.runningApplications total = 99 (regular=10 accessory=50 prohibited=39)
+extras attribute probed on all 99 of them
+current = 37 pids; proposed = 13 pids
+
+--- DISAPPEAR (26): in current, not in proposed ---
+  pid=606 bundle=- policy=? axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="Window Server"
+  pid=609 bundle=com.apple.loginwindow policy=1 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="loginwindow"
+  pid=966 bundle=com.apple.wifi.WiFiAgent policy=1 axChildren=1 cgOwnerName="Wi-Fi"
+  pid=1023 bundle=com.apple.AccessibilityUIServer policy=1 axChildren=1 cgOwnerName="Accessibility"
+  pid=1096 bundle=com.apple.notificationcenterui policy=1 axChildren=3 cgOwnerName="Notification Center"
+  pid=1223 bundle=com.apple.dock policy=1 axChildren=1 cgOwnerName="Dock"
+  pid=1249 bundle=com.apple.TextInputUI.xpc.CursorUIViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="CursorUIViewService"
+  pid=5326 bundle=com.apple.universalcontrol policy=1 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="Universal Control"
+  pid=11675 bundle=com.apple.UserNotificationCenter policy=1 axChildren=1 cgOwnerName="UserNotificationCenter"
+  pid=25427 bundle=com.apple.Safari.SandboxBroker policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="com.apple.Safari.SandboxBroker"
+  pid=27529 bundle=com.google.chrome.for.testing policy=2 axChildren=1 cgOwnerName="Google Chrome for Testing"
+  pid=31376 bundle=com.openai.sky.CUAService policy=1 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ChatGPT Computer Use"
+  pid=42133 bundle=com.apple.appkit.xpc.openAndSavePanelService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="Open and Save Panel Service"
+  pid=44163 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=49029 bundle=com.apple.quicklook.QuickLookUIService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="QuickLookUIService"
+  pid=50089 bundle=com.apple.textkit.nsattributedstringagent policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="nsattributedstringagent"
+  pid=50090 bundle=com.apple.textkit.nsattributedstringagent policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="nsattributedstringagent"
+  pid=51188 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=51221 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=51224 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=51225 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=51226 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=51228 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=51230 bundle=com.apple.appkit.xpc.ThemeWidgetControlViewService policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="ThemeWidgetControlViewService"
+  pid=78433 bundle=com.apple.screencaptureui policy=1 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="Screenshot"
+  pid=83116 bundle=com.apple.SafariPlatformSupport.Helper policy=2 axChildren=0  <-- ZERO AX CHILDREN cgOwnerName="AutoFill"
+
+--- APPEAR (2): in proposed, not in current ---
+  pid=41090 bundle=com.haystacksoftware.ArqMonitor policy=1 axChildren=2 reason=extras
+  pid=44518 bundle=com.apple.iCal policy=0 axChildren=0  <-- ZERO AX CHILDREN reason=regular
+
+--- IN BOTH (11) ---
+  pid=1058 bundle=com.apple.controlcenter policy=1 axChildren=1 cgOwnerName="Control Center" reason=extras
+  pid=1218 bundle=com.apple.MobileSMS policy=0 axChildren=2 cgOwnerName="Messages" reason=regular
+  pid=1227 bundle=com.apple.finder policy=0 axChildren=4 cgOwnerName="Finder" reason=regular
+  pid=1310 bundle=com.apple.Spotlight policy=1 axChildren=2 cgOwnerName="Spotlight" reason=extras
+  pid=22686 bundle=com.apple.ActivityMonitor policy=0 axChildren=1 cgOwnerName="Activity Monitor" reason=regular
+  pid=31044 bundle=com.openai.codex policy=0 axChildren=3 cgOwnerName="ChatGPT" reason=regular+extras
+  pid=41289 bundle=com.microsoft.VSCode policy=0 axChildren=2 cgOwnerName="Code" reason=regular
+  pid=42101 bundle=com.apple.Photos policy=0 axChildren=2 cgOwnerName="Photos" reason=regular
+  pid=55322 bundle=com.apple.Safari policy=0 axChildren=4 cgOwnerName="Safari" reason=regular
+  pid=56969 bundle=com.mitchellh.ghostty policy=0 axChildren=2 cgOwnerName="Ghostty" reason=regular
+  pid=83106 bundle=com.automattic.SimplenoteMac policy=0 axChildren=2 cgOwnerName="Simplenote" reason=regular
