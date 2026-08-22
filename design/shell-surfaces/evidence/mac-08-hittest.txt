@@ -1,0 +1,32 @@
+
+
+########## hittest 100 900
+AXUIElementCopyElementAtPosition(100,900) -> 0
+hit: AXGroup "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" actions=[AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXFocused,AXSize,AXRole,AXTopLevelUIElement,AXSelectedChildren,AXPosition,AXWindow,AXRoleDescription]
+--- ancestry ---
+AXGroup "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" actions=[AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXFocused,AXSize,AXRole,AXTopLevelUIElement,AXSelectedChildren,AXPosition,AXWindow,AXRoleDescription]
+  AXScrollArea "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" value=- DISABLED actions=[] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXSize,AXFocused,AXRole,AXTopLevelUIElement,AXMain,AXPosition,AXHelp,AXContents,AXWindow,AXRoleDescription,AXValue]
+    AXApplication "Finder" pid=1227(com.apple.finder) [0,1243 0x0] value=- actions=[] attrs=[AXFunctionRowTopLevelElements,AXValue,AXFrame,AXChildren,AXFocusedUIElement,AXFrontmost,AXRole,AXExtrasMenuBar,AXMainWindow,AXFocusedWindow,AXTitle,AXChildrenInNavigationOrder,AXEnhancedUserInterface,AXPreferredLanguage,AXRoleDescription,AXHidden,AXMenuBar,AXWindows,AXSize,AXPosition]
+
+########## hittest 1620 15
+AXUIElementCopyElementAtPosition(1620,15) -> 0
+hit: AXMenuBarItem "" pid=1058(com.apple.controlcenter) [1617,8 26x22] desc="Battery" id="com.apple.menuextra.battery" subrole=AXMenuExtra value="74%" actions=[AXPress,AXCancel] attrs=[AXURL,AXServesAsTitleForUIElements,AXNextContentSibling,AXDisclosing,AXContentSiblingAbove,AXParent,AXFocused,AXCustomActions,AXUserInputLabels,AXTitleUIElement,AXRoleDescription,AXMinValue,AXAutoInteractable,AXValueDescription,AXHelp,AXAudiograph,AXChildren,AXIdentifier,AXPath,AXDescription,AXContainerType,AXAttributedDescription,AXEnabled,AXTopLevelUIElement,AXSize,AXWindow,AXContentSiblingBelow,AXRole,AXSubrole,AXPreviousContentSibling,AXVisibleCharacterRange,AXAttributedUserInputLabels,AXActivationPoint,AXSelected,AXCustomRotors,AXLinkedUIElements,AXValue,AXChildrenInNavigationOrder,AXPosition,AXCustomContent,AXFrame,AXAllowedValues,AXMaxValue]
+--- ancestry ---
+AXMenuBarItem "" pid=1058(com.apple.controlcenter) [1617,8 26x22] desc="Battery" id="com.apple.menuextra.battery" subrole=AXMenuExtra value="74%" actions=[AXPress,AXCancel] attrs=[AXURL,AXServesAsTitleForUIElements,AXNextContentSibling,AXDisclosing,AXContentSiblingAbove,AXParent,AXFocused,AXCustomActions,AXUserInputLabels,AXTitleUIElement,AXRoleDescription,AXMinValue,AXAutoInteractable,AXValueDescription,AXHelp,AXAudiograph,AXChildren,AXIdentifier,AXPath,AXDescription,AXContainerType,AXAttributedDescription,AXEnabled,AXTopLevelUIElement,AXSize,AXWindow,AXContentSiblingBelow,AXRole,AXSubrole,AXPreviousContentSibling,AXVisibleCharacterRange,AXAttributedUserInputLabels,AXActivationPoint,AXSelected,AXCustomRotors,AXLinkedUIElements,AXValue,AXChildrenInNavigationOrder,AXPosition,AXCustomContent,AXFrame,AXAllowedValues,AXMaxValue]
+  AXMenuBar "" pid=1058(com.apple.controlcenter) [0,1221 142x22] actions=[] attrs=[AXRole,AXSize,AXEnabled,AXChildren,AXVisibleChildren,AXRoleDescription,AXFrame,AXFocused,AXParent,AXPosition]
+    AXApplication "Control Center" pid=1058(com.apple.controlcenter) [0,0 0x0] actions=[] attrs=[AXFunctionRowTopLevelElements,AXFrame,AXChildren,AXFocusedUIElement,AXFrontmost,AXRole,AXExtrasMenuBar,AXMainWindow,AXFocusedWindow,AXTitle,AXChildrenInNavigationOrder,AXEnhancedUserInterface,AXPreferredLanguage,AXRoleDescription,AXHidden,AXMenuBar,AXWindows,AXSize,AXPosition]
+
+########## hittest 400 1190
+AXUIElementCopyElementAtPosition(400,1190) -> 0
+hit: AXDockItem "Finder" pid=1223(com.apple.dock) [379,1164 53x69] subrole=AXApplicationDockItem actions=[AXPress,AXShowMenu,AXShowExpose] attrs=[AXRole,AXRoleDescription,AXSubrole,AXTitle,AXParent,AXChildren,AXPosition,AXSize,AXFrame,AXTopLevelUIElement,AXSelected,AXShownMenuUIElement,AXStatusLabel,AXProgressValue,AXURL,AXIsApplicationRunning]
+--- ancestry ---
+AXDockItem "Finder" pid=1223(com.apple.dock) [379,1164 53x69] subrole=AXApplicationDockItem actions=[AXPress,AXShowMenu,AXShowExpose] attrs=[AXRole,AXRoleDescription,AXSubrole,AXTitle,AXParent,AXChildren,AXPosition,AXSize,AXFrame,AXTopLevelUIElement,AXSelected,AXShownMenuUIElement,AXStatusLabel,AXProgressValue,AXURL,AXIsApplicationRunning]
+  AXList "" pid=1223(com.apple.dock) [372,1164 1176x69] actions=[] attrs=[AXRole,AXRoleDescription,AXEnabled,AXFocused,AXOrientation,AXParent,AXChildren,AXSelectedChildren,AXVisibleChildren,AXTopLevelUIElement,AXWindow,AXPosition,AXSize,AXFrame]
+    AXApplication "Dock" pid=1223(com.apple.dock) [0,0 0x0] actions=[] attrs=[AXRole,AXRoleDescription,AXTitle,AXChildren,AXFocusedUIElement,AXEnhancedUserInterface]
+
+########## hittest 1822 158
+AXUIElementCopyElementAtPosition(1822,158) -> 0
+hit: AXWindow "<terminal window title>" pid=56969(com.mitchellh.ghostty) [583,101 1236x1022] id="TerminalWindowRestoration" subrole=AXStandardWindow actions=[AXRaise] attrs=[AXFocused,AXFullScreen,AXTitle,AXChildrenInNavigationOrder,AXFrame,AXPosition,AXGrowArea,AXMinimizeButton,AXDocument,AXSections,AXCloseButton,AXMain,AXActivationPoint,AXFullScreenButton,AXProxy,AXDefaultButton,AXMinimized,AXChildren,AXRole,AXParent,AXTitleUIElement,AXCancelButton,AXModal,AXSubrole,AXZoomButton,AXRoleDescription,AXSize,AXToolbarButton,AXIdentifier]
+--- ancestry ---
+AXWindow "<terminal window title>" pid=56969(com.mitchellh.ghostty) [583,101 1236x1022] id="TerminalWindowRestoration" subrole=AXStandardWindow actions=[AXRaise] attrs=[AXFocused,AXFullScreen,AXTitle,AXChildrenInNavigationOrder,AXFrame,AXPosition,AXGrowArea,AXMinimizeButton,AXDocument,AXSections,AXCloseButton,AXMain,AXActivationPoint,AXFullScreenButton,AXProxy,AXDefaultButton,AXMinimized,AXChildren,AXRole,AXParent,AXTitleUIElement,AXCancelButton,AXModal,AXSubrole,AXZoomButton,AXRoleDescription,AXSize,AXToolbarButton,AXIdentifier]
+  AXApplication "Ghostty" pid=56969(com.mitchellh.ghostty) [0,0 0x0] actions=[] attrs=[AXFunctionRowTopLevelElements,AXFrame,AXChildren,AXFocusedUIElement,AXFrontmost,AXRole,AXExtrasMenuBar,AXMainWindow,AXFocusedWindow,AXTitle,AXChildrenInNavigationOrder,AXEnhancedUserInterface,AXPreferredLanguage,AXRoleDescription,AXHidden,AXMenuBar,AXWindows,AXSize,AXPosition]

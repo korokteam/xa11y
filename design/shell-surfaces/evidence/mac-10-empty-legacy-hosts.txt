@@ -1,0 +1,16 @@
+
+
+--- com.apple.systemuiserver (the pre-Control-Center status host) ---
+=== com.apple.systemuiserver pid=1226 ===
+app attrs = ["AXFunctionRowTopLevelElements", "AXFrame", "AXChildren", "AXFocusedUIElement", "AXFrontmost", "AXRole", "AXExtrasMenuBar", "AXMainWindow", "AXFocusedWindow", "AXTitle", "AXChildrenInNavigationOrder", "AXEnhancedUserInterface", "AXPreferredLanguage", "AXRoleDescription", "AXHidden", "AXMenuBar", "AXWindows", "AXSize", "AXPosition"]
+AXApplication "SystemUIServer" pid=1226(com.apple.systemuiserver) [0,0 0x0] actions=[] attrs=[AXFunctionRowTopLevelElements,AXFrame,AXChildren,AXFocusedUIElement,AXFrontmost,AXRole,AXExtrasMenuBar,AXMainWindow,AXFocusedWindow,AXTitle,AXChildrenInNavigationOrder,AXEnhancedUserInterface,AXPreferredLanguage,AXRoleDescription,AXHidden,AXMenuBar,AXWindows,AXSize,AXPosition]
+
+--- com.apple.wallpaper.agent (owns the wallpaper, not the icons) ---
+=== com.apple.wallpaper.agent pid=1232 ===
+app attrs = ["AXFunctionRowTopLevelElements", "AXFrame", "AXChildren", "AXFocusedUIElement", "AXFrontmost", "AXRole", "AXExtrasMenuBar", "AXMainWindow", "AXFocusedWindow", "AXTitle", "AXChildrenInNavigationOrder", "AXEnhancedUserInterface", "AXPreferredLanguage", "AXRoleDescription", "AXHidden", "AXMenuBar", "AXWindows", "AXSize", "AXPosition"]
+AXApplication "WallpaperAgent" pid=1232(com.apple.wallpaper.agent) [0,0 0x0] actions=[] attrs=[AXFunctionRowTopLevelElements,AXFrame,AXChildren,AXFocusedUIElement,AXFrontmost,AXRole,AXExtrasMenuBar,AXMainWindow,AXFocusedWindow,AXTitle,AXChildrenInNavigationOrder,AXEnhancedUserInterface,AXPreferredLanguage,AXRoleDescription,AXHidden,AXMenuBar,AXWindows,AXSize,AXPosition]
+
+--- com.apple.WindowManager (Stage Manager / show-desktop) ---
+=== com.apple.WindowManager pid=1083 ===
+app attrs = ["AXRole", "AXRoleDescription", "AXTitle", "AXChildren", "AXFocusedUIElement"]
+AXApplication "WindowManager" pid=1083(com.apple.WindowManager) [0,0 0x0] actions=[AXShowDesktop,AXHideDesktop] attrs=[AXRole,AXRoleDescription,AXTitle,AXChildren,AXFocusedUIElement]

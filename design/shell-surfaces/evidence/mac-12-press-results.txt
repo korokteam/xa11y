@@ -1,0 +1,20 @@
+
+
+########## AXPress on an element whose action list does NOT contain AXPress
+########## (Finder's desktop AXScrollArea, actions=[])
+target: AXScrollArea "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" value=- DISABLED actions=[] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXSize,AXFocused,AXRole,AXTopLevelUIElement,AXMain,AXPosition,AXHelp,AXContents,AXWindow,AXRoleDescription,AXValue]
+--- subtree BEFORE AXPress (1 direct children) ---
+AXScrollArea "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" value=- DISABLED actions=[] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXSize,AXFocused,AXRole,AXTopLevelUIElement,AXMain,AXPosition,AXHelp,AXContents,AXWindow,AXRoleDescription,AXValue]
+AXPress -> -25200 (FAILED)
+--- subtree AFTER AXPress (1 direct children) ---
+AXScrollArea "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" value=- DISABLED actions=[] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXSize,AXFocused,AXRole,AXTopLevelUIElement,AXMain,AXPosition,AXHelp,AXContents,AXWindow,AXRoleDescription,AXValue]
+
+########## AXPress on the Control Center menu extra, by AXIdentifier
+target: AXMenuBarItem "" pid=1058(com.apple.controlcenter) [1729,8 26x22] desc="Control Center" id="com.apple.menuextra.controlcenter" subrole=AXMenuExtra value=- actions=[AXPress,AXCancel] attrs=[AXURL,AXServesAsTitleForUIElements,AXNextContentSibling,AXDisclosing,AXContentSiblingAbove,AXParent,AXFocused,AXCustomActions,AXUserInputLabels,AXTitleUIElement,AXRoleDescription,AXMinValue,AXAutoInteractable,AXValueDescription,AXHelp,AXAudiograph,AXChildren,AXIdentifier,AXPath,AXDescription,AXContainerType,AXAttributedDescription,AXEnabled,AXTopLevelUIElement,AXSize,AXWindow,AXContentSiblingBelow,AXRole,AXSubrole,AXPreviousContentSibling,AXVisibleCharacterRange,AXAttributedUserInputLabels,AXActivationPoint,AXSelected,AXCustomRotors,AXLinkedUIElements,AXValue,AXChildrenInNavigationOrder,AXPosition,AXCustomContent,AXFrame,AXAllowedValues,AXMaxValue]
+  available action: AXPress
+  available action: AXCancel
+--- subtree BEFORE AXPress (0 direct children) ---
+AXMenuBarItem "" pid=1058(com.apple.controlcenter) [1729,8 26x22] desc="Control Center" id="com.apple.menuextra.controlcenter" subrole=AXMenuExtra value=- actions=[AXPress,AXCancel] attrs=[AXURL,AXServesAsTitleForUIElements,AXNextContentSibling,AXDisclosing,AXContentSiblingAbove,AXParent,AXFocused,AXCustomActions,AXUserInputLabels,AXTitleUIElement,AXRoleDescription,AXMinValue,AXAutoInteractable,AXValueDescription,AXHelp,AXAudiograph,AXChildren,AXIdentifier,AXPath,AXDescription,AXContainerType,AXAttributedDescription,AXEnabled,AXTopLevelUIElement,AXSize,AXWindow,AXContentSiblingBelow,AXRole,AXSubrole,AXPreviousContentSibling,AXVisibleCharacterRange,AXAttributedUserInputLabels,AXActivationPoint,AXSelected,AXCustomRotors,AXLinkedUIElements,AXValue,AXChildrenInNavigationOrder,AXPosition,AXCustomContent,AXFrame,AXAllowedValues,AXMaxValue]
+AXPress -> 0 (success)
+--- subtree AFTER AXPress (0 direct children) ---
+AXMenuBarItem "" pid=1058(com.apple.controlcenter) [1729,8 26x22] desc="Control Center" id="com.apple.menuextra.controlcenter" subrole=AXMenuExtra value=- actions=[AXPress,AXCancel] attrs=[AXURL,AXServesAsTitleForUIElements,AXNextContentSibling,AXDisclosing,AXContentSiblingAbove,AXParent,AXFocused,AXCustomActions,AXUserInputLabels,AXTitleUIElement,AXRoleDescription,AXMinValue,AXAutoInteractable,AXValueDescription,AXHelp,AXAudiograph,AXChildren,AXIdentifier,AXPath,AXDescription,AXContainerType,AXAttributedDescription,AXEnabled,AXTopLevelUIElement,AXSize,AXWindow,AXContentSiblingBelow,AXRole,AXSubrole,AXPreviousContentSibling,AXVisibleCharacterRange,AXAttributedUserInputLabels,AXActivationPoint,AXSelected,AXCustomRotors,AXLinkedUIElements,AXValue,AXChildrenInNavigationOrder,AXPosition,AXCustomContent,AXFrame,AXAllowedValues,AXMaxValue]

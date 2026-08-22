@@ -5,9 +5,9 @@ docks, desktop, shell flyouts, shell context menus) is represented in each platf
 accessibility API — and what xa11y sees of it today. Applications are deliberately out of
 scope; they are already covered.
 
-**Status:** Windows measured. Linux measured. macOS **pending** — no Mac was reachable when
-this was written. A ready-to-run probe is included (`probes/macos/shell-probe.swift`); the
-macOS section will be filled in from real output, not from recollection.
+**Status:** Windows measured. Linux measured. macOS measured — on macOS 26.5.2 (25F84),
+arm64, in an attended session with Accessibility granted. Raw dumps in
+`evidence/mac-*.txt`.
 
 Everything below marked *measured* has raw output in `evidence/`. Everything marked
 *unverified* is exactly that.
@@ -28,10 +28,33 @@ cd design/shell-surfaces/probes/windows && cargo build --release
 cd design/shell-surfaces/probes/linux
 docker build -t xa11y-shell-linux . && docker run --rm xa11y-shell-linux
 
-# macOS (pending)
+# macOS — run from a terminal granted Accessibility permission
 cd design/shell-surfaces/probes/macos
-swift shell-probe.swift apps|menubar|extras|dock|app <bundle-id>
+swift shell-probe.swift apps                    # per-process AXMenuBar / AXExtrasMenuBar
+swift shell-probe.swift extras                  # status items, every process
+swift shell-probe.swift dock
+swift shell-probe.swift cgwindows               # xa11y's list_gui_apps() basis
+swift shell-probe.swift app com.apple.controlcenter
+swift shell-probe.swift hittest 100 900
+swift shell-probe.swift showmenu com.apple.dock Finder
+swift shell-probe.swift press com.apple.controlcenter id:com.apple.menuextra.controlcenter
+swift shell-probe.swift dismiss                 # Escape, to close a flyout a probe opened
 ```
+
+### Environment caveats that limit the macOS results
+
+Attended session, single 1920x1243-point display, one user. Consequences:
+
+- Accessibility was granted but **Screen & System Audio Recording was not required** for
+  anything measured here. That matters, because Screen Recording is what gates layer-0
+  windows in `CGWindowListCopyWindowInfo`, and therefore gates `list_gui_apps()` — a
+  different permission from the AX trust that gates the trees themselves (§4.6).
+- The status-item population is whatever this machine happens to run: four processes own
+  an `AXExtrasMenuBar`, two of them third-party. The *shapes* below generalise; the
+  counts do not.
+- `press` and `showmenu` mutate the UI. Every such probe here was followed by
+  `dismiss`. Unlike the Windows session, input simulation and foreground activation both
+  work, so there is no headless control group — the CI question for macOS is open.
 
 ### Environment caveats that limit the Windows results
 
@@ -89,7 +112,9 @@ desktop children = 4
 So on Linux **xa11y can already reach the panel today** — `app("xfce4-panel")` works. There is
 no `Unsupported` to return for panels; only the *tray protocol* has a genuine gap (§3).
 
-**macOS** — `xa11y-macos/src/ax.rs:1605-1607` explicitly filters it out:
+**macOS** — two independent gates, and only the first was known before measuring.
+
+*Gate one, the menu bar.* `xa11y-macos/src/ax.rs:1759-1761` explicitly filters it out:
 
 ```rust
 if parent_role == Role::Application && child_role == "AXMenuBar" {
@@ -100,11 +125,44 @@ if parent_role == Role::Application && child_role == "AXMenuBar" {
 The role mapping already knows `AXMenuBar` / `AXMenuBarExtra` → `Role::MenuBar`
 (`docs/site/src/content/docs/guides/platform-details.mdx:25`). So on macOS the menu bar is
 reachable and mapped, and is being deliberately dropped one line deep in the child filter.
+(An earlier draft of this report cited `ax.rs:1605-1607`; the filter is at 1759-1761 at the
+tip of this branch. The code is unchanged, the citation was wrong.)
+
+*Gate two, app discovery — measured, and the more consequential of the two.*
+`list_gui_apps()` (`ax.rs:1311`) builds the app list from `CGWindowListCopyWindowInfo`,
+keyed by `kCGWindowOwnerPID` with a non-empty `kCGWindowOwnerName`. Measured
+(`mac-09-cgwindow-owners.txt`): 29 owner pids, all named, so the name rule drops nothing.
+Dock, Control Center, Notification Center, Finder and Spotlight are all in that list and
+are **nameable today**.
+
+But a status-item-only accessory app is not:
+
+```
+com.haystacksoftware.ArqMonitor  pid=41090   AXExtrasMenuBar = populated, menu works
+                                             CGWindowList entries = 0
+```
+
+It owns no CG window, so `list_gui_apps()` cannot see it — while its `AXExtrasMenuBar` is
+fully enumerable through `AXUIElementCreateApplication(pid)`. `SystemUIServer`,
+`WallpaperAgent` and `WindowManager` are absent for the same reason. So on macOS the tray
+equivalent fans out over processes, and some of those processes are invisible to the app
+list even though the AX API serves them.
+
+*Already reachable, needing nothing.* The **desktop** is an `AXScrollArea` with
+`AXDescription = "desktop"` sitting directly in Finder's `AXChildren`, not in `AXWindows`
+(`mac-04-finder-desktop.txt`). Since `ax.rs:376` reads `AXChildren` and never touches
+`AXWindows`, the desktop and its icons are already in the walk.
 
 > **Design consequence.** The feature is less "add a new primitive" than "stop filtering, and
 > give callers a way to name the surfaces". A synthetic `MenuBar` root would invent a parent
 > that exists on no platform, and on Windows would have to merge ≥6 unrelated top-level
 > windows under it.
+>
+> The macOS measurement adds a second, cheaper consequence: one of the two gates is in the
+> **app list**, not the tree walk. A process that owns a status item but no window is
+> unreachable by name today, and widening `list_gui_apps()` past `CGWindowListCopyWindowInfo`
+> (e.g. `NSWorkspace.runningApplications` filtered to a live `AXExtrasMenuBar`) fixes that
+> without touching the element model at all.
 
 ---
 
@@ -387,48 +445,154 @@ AT-SPI), Wayland variants of any of it.
 
 ---
 
-## 4. macOS — pending
+## 4. macOS — measured
 
-`macos/shell-probe.swift` is written and covers: trust check, per-process `AXMenuBar` and
-`AXExtrasMenuBar` inventory, frontmost menu bar, Dock, arbitrary bundle IDs
-(`com.apple.controlcenter`, `com.apple.systemuiserver`, `com.apple.notificationcenterui`,
-`com.apple.finder`), and an `AXPress`-and-re-dump path. It prints role, subrole, title,
-description, identifier, help, value, frame, pid, the full action list and the full attribute
-list per node — the same detail as the Windows and Linux dumps.
+macOS 26.5.2 (25F84), arm64, attended session, Accessibility granted to the terminal
+running `swift`. Every claim here has a dump in `evidence/mac-*.txt`.
 
-Two things are already known from the repo without a Mac, and both are load-bearing:
+The short version: **macOS is the best-behaved of the three platforms.** Identity is
+strong, the owning process is always known, most surfaces need no click to enumerate,
+`AXShowMenu` genuinely works, and no probe produced a false success. The gap is almost
+entirely in discovery, and half of it is in the app list rather than the tree.
 
-1. **xa11y already reaches the menu bar and deliberately drops it** —
-   `xa11y-macos/src/ax.rs:1605-1607` filters `AXMenuBar` children of `Application`. The role
-   map already handles `AXMenuBar` / `AXMenuBarExtra` → `Role::MenuBar`.
-2. **On macOS 26+, without Screen & System Audio Recording permission, the AX API exposes
-   *only* menu bars** (`README.md:72`, `docs/…/quick-start.mdx:38`). So the menu-bar surface has
-   the *opposite* permission profile from app content — a permission story the design should
-   state explicitly rather than inherit.
+### 4.1 Status items are a per-process fan-out, not one tray
 
-Open questions the probe is built to answer, which I will not guess at:
-whether `list_gui_apps()`' `CGWindowListCopyWindowInfo` basis enumerates `LSUIElement`
-accessory apps that own only a status item; whether `AXExtrasMenuBar` is per-process (implying
-a fan-out over every process, unlike Windows' single tray); how Control Center's own items are
-hosted relative to third-party status items; whether Dock items expose `AXShowMenu` as a real
-action (the one place a tray-style context menu might be a first-class a11y verb).
+There is no tray object. Each process that vends a status item owns its own
+`AXExtrasMenuBar` (`mac-02`). On this machine, 4 of 67 apps had one:
 
----
+```
+com.apple.controlcenter    7 AXMenuBarItem (4 live + 3 zero-size DISABLED placeholders)
+com.apple.Spotlight        1
+com.haystacksoftware.ArqMonitor  1   (third-party, NSMenu-backed)
+com.openai.codex           1   (third-party, NSMenu-backed)
+```
+
+Windows has one tray to walk; Linux has N panel processes; macOS has N *application*
+processes, and the only way to find them is to ask every process. Note also that
+`AXExtrasMenuBar` and `AXMenuBar` appear in the **attribute-name list of nearly every
+process** while their value is nil (`mac-01`) — name presence is not a discriminator, the
+value has to be read.
+
+### 4.2 Identity is strong — the opposite of Windows
+
+Windows tray icons all share `aid="SystemTrayIcon"`. macOS carries a real identifier on
+almost everything:
+
+| Surface | Identity |
+|---|---|
+| Apple menu extras | `AXIdentifier` = `com.apple.menuextra.battery` / `.clock` / `.wifi` / `.controlcenter` |
+| Control Center controls | `controlcenter-wifi`, `controlcenter-bluetooth`, `controlcenter-volume-slider`, … |
+| Dock items | `AXURL` (the bundle/folder URL) + `AXTitle` + a meaningful `AXSubrole` |
+| NC widgets | `widget-local:com.apple.weather:com.apple.weather.widget:com.apple.weather` |
+
+Two caveats. Module-hosted Control Center controls (Stage Manager, Dark Mode, Capture
+Screen) use a composite id ending in a **per-install UUID**, so those are not portable
+(`mac-06`). And third-party status items carry no useful id at the menu-bar-item level —
+Arq's menu items fall back to nib ids (`_NS:18`, `_NS:21`), which are build artifacts.
+
+Dock subroles are the cleanest kind tag on any platform:
+`AXApplicationDockItem` / `AXFolderDockItem` / `AXTrashDockItem` / `AXSeparatorDockItem`.
+
+### 4.3 Owning pid is always right
+
+Every status item, dock item and menu extra reports the pid of the app that owns it.
+Windows reports `explorer.exe` for everything; Linux gets it right for XEmbed and not for
+StatusNotifierItems. macOS is the only platform where per-item ownership is unconditionally
+available — the AX element *is* the owning process's element.
+
+### 4.4 Enumeration is mostly non-mutating — with one exception
+
+This is the sharpest contrast with Windows, where hidden tray icons do not exist as
+elements until the chevron is pressed.
+
+**NSMenu-backed status items expose their whole menu while closed.** Arq's and codex's
+complete menus — titles, `AXPress`/`AXPick`, submenus — are readable with the menu shut,
+parked at frame `[0,1243 0x0]` (`mac-02`). No click needed.
+
+**Control Center is the exception.** Closed, the process has one child (the menu-extra
+bar), no `AXWindow`, and each menu extra has zero children (`mac-05`). Its contents do not
+exist until it is opened. So "enumerate the status items" is read-only on macOS, but
+"enumerate what is *inside* Control Center" is not.
+
+> **Design consequence.** Same conclusion as Windows §2.3, reached from a different
+> direction: whether a shell enumeration mutates is a property of the *individual surface*,
+> not of the platform. An API that documents "dump is read-only" per-platform will be wrong
+> on macOS in one direction and on Windows in the other.
+
+### 4.5 Actions: no false successes, but the result lands somewhere surprising
+
+Windows produced three measured false successes (§6.4). macOS produced none.
+
+- **`AXShowMenu` on a Dock item genuinely works** (`mac-07`). Success *and* a real,
+  fully accessible menu. `AXShownMenuUIElement` is nil before and present after, so there
+  is a **verifiable post-condition** — exactly what Windows' `ShowContextMenu` lacks.
+  The menu is hosted in a *different process* (`com.apple.dock.helper`, pid 45063, not
+  `com.apple.dock`, pid 1223), and the cross-process hop is transparent to a tree walk.
+- **`AXPress` on the Control Center menu extra genuinely opens it** (`mac-12`, `mac-06`) —
+  but the pressed element's child count is **0 before and 0 after**. What appears is a new
+  `AXWindow subrole=AXSystemDialog` on the *application*, a sibling of the menu bar, not
+  reachable via `AXShownMenuUIElement`.
+- **Unsupported actions fail honestly.** `AXPress` on an element with `actions=[]` returns
+  `-25200` (`kAXErrorFailure`); on the `AXApplication` element, `-25206`
+  (`kAXErrorActionUnsupported`).
+
+> **Design consequence.** The naive post-verify — "re-read the target's subtree and check
+> something appeared" — reports the Control Center press as a no-op. Post-verification has
+> to be scoped to the owning *application*, not the pressed element.
+
+One wart: Control Center's action list is not a clean enum. Alongside `AXPress` and
+`AXShowMenu`, `AXUIElementCopyActionNames` returns a literal three-line string
+`Name:show details / Target:0x0 / Selector:(null)` — an ObjC custom-action description
+leaking through (`mac-06`). Same shape of problem as Windows' flattened multi-line tray
+tooltips, in a different field.
+
+### 4.6 Permissions split along a different seam than expected
+
+The known claim was that on macOS 26+ without Screen & System Audio Recording, the AX API
+exposes only menu bars (`README.md:72`). The measurement refines it: **Accessibility trust
+alone was enough for every tree in this report** — Dock, Control Center, Notification
+Center, the Finder desktop, all status items. Screen Recording gates
+`CGWindowListCopyWindowInfo`, and therefore `list_gui_apps()` — i.e. it gates *naming an
+app*, not *reading its tree*. Those are two different permissions guarding two different
+stages, and a surface reachable by pid can be unreachable by name.
+
+### 4.7 Odds and ends
+
+- **Hit-testing works everywhere** (`mac-08`). `AXUIElementCopyElementAtPosition` returns
+  the right element for the desktop, a menu extra, and a dock item, and every `AXParent`
+  chain terminates at an `AXApplication`, so a point maps cleanly to (surface, process).
+  It respects z-order: a window over a desktop icon wins.
+- **`SystemUIServer` and `WallpaperAgent` are empty** (`mac-10`) — `AXApplication` with
+  zero children. Same present-but-empty shape as the Win11 legacy taskbar regions (§2.2),
+  and the same clean era discriminator.
+- **`WindowManager` has verbs but no elements** — zero children, but the application
+  element itself carries `AXShowDesktop` and `AXHideDesktop`.
+- **Desktop widgets persist in the tree** (`mac-11`). Notification Center holds an
+  `AXWindow "Forecast"` while NC is closed, with a stable widget id and `AXShowMenu`. Its
+  content is exposed only as flattened `AXDescription` strings on `AXUnknown` nodes — no
+  roles, no values. Widgets are visible but not really inspectable.
+- **There is no system-owned menu bar.** Each app vends its own copy of the Apple menu;
+  22 of 67 processes had a live `AXMenuBar`. "The menu bar" is per-application, which is
+  why a single `system_menu_bar()` does not fit even the platform it was named for.
+
 
 ## 5. Cross-platform comparison
 
-| | Windows 11 | Linux (xfce4/AT-SPI) | macOS |
+| | Windows 11 | Linux (xfce4/AT-SPI) | macOS 26 |
 |---|---|---|---|
-| Reachable today by xa11y | ✗ (root filter drops Panes) | **✓ already** | ✗ (menu bar filtered at `ax.rs:1605`) |
-| Shell surface is… | ≥6 separate top-level windows | frames with `window-type:dock` | pending |
-| Discriminator | class name + owning process | `window-type:dock` attribute | pending |
-| Per-icon owner pid | **✗** (all explorer) | ✓ XEmbed / ✗ SNI | pending |
-| Stable per-icon id | ✗ (all `aid=SystemTrayIcon`) | ✗ (SNI is anonymous) | pending |
-| visible vs overflow | ✓ `SystemTrayIcon` vs `NotifyItemIcon` | ✓ (hidden-items toggle exists) | pending |
-| Enumerating hidden icons | **requires opening the flyout** | (untested) | pending |
-| Activate an icon | ✓ `Invoke` | ✓ SNI only | pending |
-| Icon context menu | ✗ (`ShowContextMenu` returns S_OK, no-ops) | ✗ (dbusmenu, not AT-SPI) | pending |
-| Shell context menu elsewhere | ✓ Win32 desktop, fully accessible | n/a | pending |
+| Reachable today by xa11y | ✗ (root filter drops Panes) | **✓ already** | partly — desktop/Dock **✓ already**; menu bar filtered at `ax.rs:1759`; status-item-only apps unnameable |
+| Shell surface is… | ≥6 separate top-level windows | frames with `window-type:dock` | N application processes, each with its own `AXExtrasMenuBar` / tree |
+| Discriminator | class name + owning process | `window-type:dock` attribute | `AXSubrole` (`AXMenuExtra`, `AXApplicationDockItem`, …) + bundle id |
+| Per-icon owner pid | **✗** (all explorer) | ✓ XEmbed / ✗ SNI | **✓ always** |
+| Stable per-icon id | ✗ (all `aid=SystemTrayIcon`) | ✗ (SNI is anonymous) | **✓ Apple items** (`com.apple.menuextra.*`); ✗ third-party (nib ids) |
+| visible vs overflow | ✓ `SystemTrayIcon` vs `NotifyItemIcon` | ✓ (hidden-items toggle exists) | n/a — no overflow on this display |
+| Enumerating hidden icons | **requires opening the flyout** | (untested) | **not needed** for NSMenu items; **required** for Control Center contents |
+| Activate an icon | ✓ `Invoke` | ✓ SNI only | ✓ `AXPress`, and it really acts |
+| Icon context menu | ✗ (`ShowContextMenu` returns S_OK, no-ops) | ✗ (dbusmenu, not AT-SPI) | **✓ `AXShowMenu` works**, menu hosted cross-process |
+| Shell context menu elsewhere | ✓ Win32 desktop, fully accessible | n/a | ✓ desktop + every Dock item |
+| False successes measured | **3** | 0 | **0** |
+| Desktop | ✓ Progman/SysListView32 | n/a | ✓ Finder `AXScrollArea desc="desktop"` (in `AXChildren`, not `AXWindows`) |
+| Hit-test to element | (untested) | (untested) | ✓ every surface, z-order respected |
 
 ---
 
@@ -436,41 +600,73 @@ action (the one place a tray-style context menu might be a first-class a11y verb
 
 Framed as observations and questions, not a design.
 
-1. **A single `system_menu_bar() -> Element` does not match the measured shape.** macOS has one
-   menu bar; Windows has a taskbar, a tray, a desktop, and 3+ transient flyouts as *unrelated
-   siblings*; Linux has N dock frames possibly across N panel processes. A collection with a
-   kind tag (`taskbar` / `tray` / `menubar` / `dock` / `desktop` / `flyout` / `notifications`)
-   fits all three; a synthetic single root fits one and fabricates a parent for the others.
-   The name too: there is no "menu bar" on Windows or Linux.
+1. **A single `system_menu_bar() -> Element` does not match the measured shape — and macOS
+   is now the strongest evidence against it, not for it.** macOS does not have "one menu
+   bar" either: the menu bar is *per application* (22 of 67 processes had one), status items
+   fan out over N processes, and the Dock, desktop and Control Center are three more
+   unrelated surfaces in three more processes. Windows has a taskbar, a tray, a desktop and
+   3+ transient flyouts as unrelated siblings; Linux has N dock frames across N panel
+   processes. A collection with a kind tag (`taskbar` / `tray` / `menubar` / `dock` /
+   `desktop` / `flyout` / `notifications`) fits all three; a synthetic single root fits none
+   of them. The name too: there is no "menu bar" on Windows or Linux, and on macOS it names
+   the one surface that is least shell-owned.
 
 2. **The Windows work is mostly a *filter*, not a walk.** Keep root children that are not
    ordinary app windows and are owned by shell processes. Linux is a filter on
-   `window-type:dock`. macOS is deleting three lines of child filtering. That is a much smaller
-   surface than a dual-discovery region walk — the region walk is only needed for Win10, and
-   §2.2 shows the Win11 legacy regions are present-but-empty, which is a clean, detectable
-   discriminator between the two eras.
+   `window-type:dock`. That is a much smaller surface than a dual-discovery region walk — the
+   region walk is only needed for Win10, and §2.2 shows the Win11 legacy regions are
+   present-but-empty, which is a clean, detectable discriminator between the two eras.
 
-3. **Enumeration has side effects, and the API should say so.** Hidden tray icons on Windows do
-   not exist as elements until the chevron is pressed. Either `tree`/`dump` of the tray is
-   documented as returning only the visible row, or there is an explicit "open overflow" step.
-   Silently pressing the chevron during a `dump` would surprise anyone.
+   macOS was assumed to be "delete three lines of child filtering". Measured, it is that
+   *plus* a change to app discovery: `list_gui_apps()` is built on
+   `CGWindowListCopyWindowInfo`, and a process that owns a status item but no window is
+   absent from it (§1, `mac-09`). Deleting the filter alone would expose menu bars for apps
+   xa11y can already name, and still leave `LSUIElement` status-item apps unreachable.
 
-4. **`press` needs a stronger contract here than it does for apps.** Measured: `Toggle` on the
-   Start button returns success and flips `ToggleState` without acting; `DoDefaultAction` on a
-   taskbar app button returns `S_OK` without launching; `ShowContextMenu` returns `S_OK`
-   without showing. Shell chrome returns success far more freely than app widgets do. Options
-   worth weighing: (a) don't advertise the verb where it can't be verified, (b) post-verify
-   (window appeared / toggle state settled) and error otherwise, (c) advertise it and document
-   the lie. Tenet 1 points hard at (a) or (b).
+3. **Enumeration has side effects, and the API should say so — per surface, not per
+   platform.** Hidden tray icons on Windows do not exist as elements until the chevron is
+   pressed. Either `tree`/`dump` of the tray is documented as returning only the visible row,
+   or there is an explicit "open overflow" step. Silently pressing the chevron during a
+   `dump` would surprise anyone.
+
+   macOS splits the same way *within one platform*: NSMenu-backed status items expose their
+   entire menu while closed, while Control Center's contents do not exist until it is opened
+   (§4.4). So "is dump read-only here?" is a property of the surface. Whatever the kind tag
+   ends up being, it is the natural place to carry that bit.
+
+4. **`press` needs a stronger contract here than it does for apps — but the problem is
+   Windows-shaped, not universal.** Measured on Windows: `Toggle` on the Start button returns
+   success and flips `ToggleState` without acting; `DoDefaultAction` on a taskbar app button
+   returns `S_OK` without launching; `ShowContextMenu` returns `S_OK` without showing. Shell
+   chrome returns success far more freely than app widgets do. Options worth weighing:
+   (a) don't advertise the verb where it can't be verified, (b) post-verify (window appeared /
+   toggle state settled) and error otherwise, (c) advertise it and document the lie. Tenet 1
+   points hard at (a) or (b).
+
+   macOS produced **zero** false successes across the same probes (§4.5): `AXShowMenu` really
+   shows, `AXPress` really presses, unsupported actions return `-25200` / `-25206`. So (a)
+   would strip a verb that works on two platforms to route around one. That argues for (b),
+   with one measured caveat: on macOS the Control Center press lands as a new window on the
+   *application*, not under the pressed element, so post-verification scoped to the target's
+   subtree gives a false negative. Verify at application scope.
 
 5. **`pid` is per-protocol, not per-OS.** Windows: never. Linux: yes for XEmbed, no for SNI.
-   macOS: pending. A flat "reported on macOS, omitted on Windows" rule under-describes Linux.
+   macOS: always, unconditionally — the element belongs to the owning process (§4.3). A flat
+   "reported on macOS, omitted on Windows" rule happens to be right at the endpoints and
+   still under-describes Linux, where it depends on which tray protocol the icon used.
 
 6. **Identity needs something better than `Name`.** Windows tray names are flattened
    multi-line tooltips carrying live state and embedded LTR marks; Linux SNI items have no name
    at all. Whatever selector story ships should not be "match on name" by default. Some
    surfaces are much better behaved (`Microsoft.QuickAction.*`, `Appid: <AUMID>`,
    `ListViewItem-N`) and those aids should be surfaced.
+
+   macOS shows what "good" looks like and where it stops: Apple menu extras have stable
+   reverse-DNS identifiers, Dock items have `AXURL`, NC widgets have composite widget ids —
+   but third-party status items fall back to nib ids (`_NS:18`), and some Control Center
+   controls embed a per-install UUID (§4.2). So even the best platform needs the selector
+   story to degrade gracefully; an id-only selector would work for Apple's surfaces and fail
+   on exactly the third-party ones users care about automating.
 
 7. **Liveness/staleness dominates.** Surfaces appear in and disappear from the root; some
    persist as hidden hosts with stale bounds (`ControlCenterWindow`); names change with state
@@ -483,6 +679,13 @@ Framed as observations and questions, not a design.
    surfaces do not open. Tray overflow, Quick Settings, Notification Center and Win32 context
    menus *do*. That split defines what can be asserted in automated tests versus what needs an
    attended machine.
+
+   The macOS run was attended, so it establishes no such split — and the parts most worth
+   testing are the least deterministic: which processes own status items is whatever the
+   machine happens to run. The stable, assertable facts are the Apple-owned ones (Dock
+   subroles, `com.apple.menuextra.*` identifiers, the Finder desktop scroll area,
+   SystemUIServer being empty). Anything asserting on third-party status items will be
+   asserting on the runner's software inventory.
 
 ---
 
@@ -500,19 +703,56 @@ design/shell-surfaces/
   evidence/win-11-start-toggle-false-success.txt
                                              Start Toggle: state flips, menu never opens, restored
   evidence/linux-01,02-*.txt                 AT-SPI panel + dual-protocol tray dumps
+  evidence/mac-01-apps-menubar-inventory.txt per-process AXMenuBar / AXExtrasMenuBar inventory
+  evidence/mac-02-extras-status-items.txt    all four status-item owners, menus included
+  evidence/mac-03-dock.txt                   Dock: subroles, AXURL, AXShowMenu/AXShowExpose
+  evidence/mac-04-finder-desktop.txt         the desktop is an AXScrollArea in AXChildren
+  evidence/mac-05,06-controlcenter-*.txt     closed vs open — the mutating-enumeration pair
+  evidence/mac-07-dock-showmenu.txt          AXShowMenu works; menu hosted cross-process
+  evidence/mac-08-hittest.txt                AXUIElementCopyElementAtPosition on each surface
+  evidence/mac-09-cgwindow-owners.txt        list_gui_apps() basis; the status-item-app gap
+  evidence/mac-10-empty-legacy-hosts.txt     SystemUIServer/WallpaperAgent empty; WindowManager
+  evidence/mac-11-notification-center.txt    persistent desktop widget + a full Apple menu
+  evidence/mac-12-press-results.txt          honest errors; press lands outside the target
   probes/windows/                            Rust UIA probe (windows-rs 0.62); excluded from the
                                              cargo workspace in the root Cargo.toml
   probes/linux/                              Dockerfile + AT-SPI dumper + dual-protocol tray app
-  probes/macos/shell-probe.swift             AX probe — written, not yet run
+  probes/macos/shell-probe.swift             AX probe — run; produced every mac-*.txt above
 ```
 
-Machine-identifying strings in `evidence/` are redacted: the Wi-Fi SSID appears as `<SSID>`, the
-user's home path as `C:\Users\<user>`, and one personal desktop file as
-`<redacted desktop item>`. Nothing else was altered.
+Four commands were added to `shell-probe.swift` while running it, because the questions in
+§4.5–4.7 could not be answered without them: `showmenu` (AXShowMenu + dump
+`AXShownMenuUIElement`), `hittest` (system-wide hit test + ancestry), `cgwindows` (mirrors
+`list_gui_apps()`), and `dismiss` (Escape, to close a flyout a probe opened). `press` now
+dumps the target subtree *before* acting as well as after — the before/after child counts in
+`mac-12` are the measurement. Element lookup also gained an `id:<AXIdentifier>` form and no
+longer matches the `AXApplication` root by title, which it previously did: the first attempt
+at `press com.apple.controlcenter "Control Center"` hit the *process* rather than the menu
+extra, and returned a perfectly honest `-25206` for the wrong element.
 
-Two corrections worth recording, both caught by re-checking rather than by the first result:
+Machine-identifying strings in `evidence/` are redacted. On Windows: the Wi-Fi SSID appears as
+`<SSID>`, the user's home path as `C:\Users\<user>`, and one personal desktop file as
+`<redacted desktop item>`. On macOS: the Wi-Fi SSID as `<SSID>`, the weather widget's location
+and readings as `<city>` / `<temp>` / `<condition>`, the account name as `<user>`, per-install
+Control Center UUIDs as `<uuid>`, one terminal window title, and every user file and folder
+name — desktop icons, Finder window titles, Dock recent items and the Apple menu's Recent
+Items — as `<file-N>` / `<folder-N>`, numbered consistently across all files so the same item
+keeps the same placeholder. Application and bundle identifiers are **not** redacted: the
+finding in §1 depends on a real `LSUIElement` status-item app being nameable and checkable.
+Roles, subroles, identifiers, actions, attributes, frames and counts are untouched.
+
+Nothing else was altered.
+
+Three corrections worth recording, all caught by re-checking rather than by the first result:
 the initial Windows pattern-availability table used guessed property IDs and mislabelled every
-pattern (the real IDs are alphabetically ordered from 30027, not grouped); and the first
+pattern (the real IDs are alphabetically ordered from 30027, not grouped); the first
 `ShowContextMenu` conclusion ("no-op everywhere") was wrong because the check grepped for the
-Win32 menu class `#32768` — the Win11 shell menu is a `PopupWindowSiteBridge`. Both are fixed
+Win32 menu class `#32768` — the Win11 shell menu is a `PopupWindowSiteBridge`; and the macOS
+menu-bar filter was cited as `ax.rs:1605-1607` when it is at 1759-1761. All three are fixed
 above; all figures in this report come from the corrected runs in `evidence/`.
+
+One prediction in the pre-measurement draft of §4 was also wrong in a way worth keeping: it
+framed macOS as the platform needing the least work ("deleting three lines of child
+filtering"). The tree side was right. The app-discovery side — that a status-item-only app is
+absent from `CGWindowListCopyWindowInfo` and therefore unnameable — was not anticipated, and
+it is the larger of the two gaps.

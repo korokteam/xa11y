@@ -1,0 +1,41 @@
+# `MAXD=6 swift shell-probe.swift app com.apple.finder`, elided.
+#
+# THE DESKTOP IS REACHABLE, and it is not a window. Finder's AXApplication has four
+# direct AXChildren: two ordinary AXWindows, the AXMenuBar, and an
+# AXScrollArea desc="desktop" holding one AXGroup desc="desktop" with the icons.
+#
+# That matters because xa11y-macos reads AXChildren (ax.rs:376) and never touches
+# AXWindows, so the desktop is already in the walk today. Anything that enumerated
+# via AXWindows instead would miss it entirely.
+#
+# The scroll area reports AXEnabled=false (DISABLED) while its contents are fully
+# enumerable and each icon carries AXOpen + AXShowMenu. The 309 AXMenuItems of
+# Finder's own menu bar are elided here; see mac-11 for a full menu-bar dump.
+#
+# Redacted: the 15 desktop item names -> <file-N> / <folder-N>, and one Finder window
+# title -> <folder-11>. Positions, counts, roles and actions are untouched.
+
+--- direct children of the Finder AXApplication (attrs elided) ---
+  AXWindow "Desktop" pid=1227(com.apple.finder) [1000,389 920x436] id="FinderWindow" subrole=AXStandardWindow value=- actions=[AXRaise]
+  AXWindow "<folder-11>" pid=1227(com.apple.finder) [1123,315 920x436] id="FinderWindow" subrole=AXStandardWindow value=- actions=[AXRaise]
+  AXMenuBar "" pid=1227(com.apple.finder) [0,0 1920x38] id="_NS:1088" actions=[AXCancel]
+  AXScrollArea "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" value=- DISABLED actions=[]
+
+--- the desktop subtree, verbatim ---
+  AXScrollArea "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" value=- DISABLED actions=[] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXSize,AXFocused,AXRole,AXTopLevelUIElement,AXMain,AXPosition,AXHelp,AXContents,AXWindow,AXRoleDescription,AXValue]
+    AXGroup "" pid=1227(com.apple.finder) [0,0 1920x1243] desc="desktop" actions=[AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXChildren,AXFocused,AXSize,AXRole,AXTopLevelUIElement,AXSelectedChildren,AXPosition,AXWindow,AXRoleDescription]
+      AXImage "<folder-1>" pid=1227(com.apple.finder) [1822,158 64x64] desc="<folder-1>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<file-1>" pid=1227(com.apple.finder) [1822,270 64x64] desc="<file-1>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-2>" pid=1227(com.apple.finder) [1822,494 64x64] desc="<folder-2>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-3>" pid=1227(com.apple.finder) [1822,718 64x64] desc="<folder-3>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<file-2>" pid=1227(com.apple.finder) [1822,830 64x64] desc="<file-2>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-4>" pid=1227(com.apple.finder) [1822,942 64x64] desc="<folder-4>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<file-3>" pid=1227(com.apple.finder) [1822,1054 64x64] desc="<file-3>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-5>" pid=1227(com.apple.finder) [1698,158 64x64] desc="<folder-5>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<file-4>" pid=1227(com.apple.finder) [1698,494 64x64] desc="<file-4>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-7>" pid=1227(com.apple.finder) [1822,382 64x64] desc="<folder-7>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-6>" pid=1227(com.apple.finder) [1698,270 64x64] desc="<folder-6>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-8>" pid=1227(com.apple.finder) [1698,46 64x64] desc="<folder-8>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-9>" pid=1227(com.apple.finder) [1822,606 64x64] desc="<folder-9>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<folder-10>" pid=1227(com.apple.finder) [1822,46 64x64] desc="<folder-10>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
+      AXImage "<file-5>" pid=1227(com.apple.finder) [1698,382 64x64] desc="<file-5>" actions=[AXOpen,AXShowMenu] attrs=[AXEnabled,AXFrame,AXDescription,AXParent,AXSize,AXFocused,AXChildren,AXFilename,AXRole,AXURL,AXTopLevelUIElement,AXPosition,AXHelp,AXTitle,AXWindow,AXRoleDescription,AXSelected]
