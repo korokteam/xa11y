@@ -1,0 +1,10 @@
+# `shell-probe rootchild "System tray overflow" --depth 6 --raw`, run immediately after
+# Invoke()ing "Show Hidden Icons" a second time to close the flyout.
+#
+# The output below is empty, and that IS the measurement: with the flyout closed,
+# TopLevelWindowForOverflowXamlIsland is not a child of the UIA desktop root at all.
+# Reaching it by HWND instead yields only the host Pane with zero children and legacy
+# state 0x108000 (STATE_SYSTEM_INVISIBLE) — the XAML island is not instantiated.
+#
+# Compare win-06-tray-overflow-open.txt, same command with the flyout open.
+
