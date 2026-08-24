@@ -19,6 +19,14 @@ updates:
       - "/"
       - "/test-apps/tauri"
       - "/test-apps/egui"
+      # The binding crates sit outside the workspace and carry their own
+      # lockfiles — and those lockfiles are what build the published PyPI
+      # wheel and npm binary. Without these entries they drifted five zbus
+      # minors behind root (5.14.0 vs 5.19.0), so the shipped Linux AT-SPI
+      # transport was not the one CI tested.
+      - "/xa11y-python"
+      - "/xa11y-js"
+      - "/xa11y/fuzz"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -41,8 +49,10 @@ updates:
           - "*"
 
   # ── npm ────────────────────────────────────────────────────────────
-  # JS bindings, the docs site, and the Electron test app each carry their
-  # own lockfile.
+  # The JS bindings and the docs site each carry their own committed lockfile.
+  # The Electron test app does not (test-apps/electron/.gitignore ignores
+  # package-lock.json), so Dependabot can only widen its package.json ranges
+  # there — nothing pins its transitive tree.
   - package-ecosystem: "npm"
     directories:
       - "/xa11y-js"
