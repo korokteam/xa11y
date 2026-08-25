@@ -56,9 +56,9 @@ Integration tests use shared helpers from `xa11y/tests/integ/mod.rs`:
 5. **Blocking calls release the host runtime's lock.** In language bindings, any call that can block, sleep, or poll — waits, auto-waiting actions, attach/discovery loops, event receives — must release the host runtime's global lock (Python's GIL, or the platform equivalent) for the duration of the block. A wait that holds the GIL freezes every other thread in the consumer's process for up to the full timeout, and forces consumers into architectural workarounds (e.g. moving an in-process mock server into a separate process).
 
    **Anti-patterns that violate this tenet:**
-   - A binding method that calls a core wait/poll loop directly instead of inside `py.allow_threads` (or the platform equivalent).
+   - A binding method that calls a core wait/poll loop directly instead of inside `py.detach` (or the platform equivalent).
    - Holding the lock across a whole poll loop because one step needs it. The only legitimate reason to hold the lock is calling back into the host language (e.g. a Python predicate in `wait_until` / `App.find`) — reacquire it per callback, never for the loop.
-   - Treating this as an optimization. A missing `allow_threads` on a blocking path is a correctness bug, not a style choice.
+   - Treating this as an optimization. A missing `detach` on a blocking path is a correctness bug, not a style choice.
 
    Enforced for Python by `xa11y-python/tests/test_gil_release.py`, which asserts that a background thread keeps making progress while a native wait blocks.
 
@@ -496,7 +496,7 @@ Neither binding's `Element` is a core `Element` (Python holds `ElementData`, JS 
 
 ### Python blocking calls release the GIL
 
-Any binding method that reaches an OS call goes inside `py.allow_threads`, with argument parsing done first (it needs the GIL). This is tenet 5, and it is not optional for input simulation: `drag(duration=...)` makes the block caller-controlled.
+Any binding method that reaches an OS call goes inside `py.detach`, with argument parsing done first (it needs the GIL). This is tenet 5, and it is not optional for input simulation: `drag(duration=...)` makes the block caller-controlled.
 
 ## Type Declarations
 

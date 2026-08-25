@@ -57,7 +57,7 @@ fn attach_diagnosis_attrs(
     elapsed_secs: Option<f64>,
     diagnosis: Option<&xa11y::Diagnosis>,
 ) -> PyErr {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let value = err.value(py);
         // Best-effort by design: the rendered message already carries the
         // same content, and replacing the original exception with an
@@ -158,7 +158,7 @@ fn to_py_err(e: xa11y::Error) -> PyErr {
 /// Convert a `serde_json::Value` to a Python object. Used by `Element.raw` to
 /// expose platform-specific data that arrives as JSON (the provider traits
 /// store it as `HashMap<String, serde_json::Value>`).
-fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<PyObject> {
+fn json_to_py(py: Python<'_>, value: &serde_json::Value) -> PyResult<Py<PyAny>> {
     Ok(match value {
         serde_json::Value::Null => py.None(),
         serde_json::Value::Bool(b) => b.into_pyobject(py)?.to_owned().into_any().unbind(),
@@ -239,7 +239,7 @@ fn make_py_element(
     )
 }
 
-fn tree_node_to_py(py: Python<'_>, node: &xa11y::TreeNode) -> PyResult<PyObject> {
+fn tree_node_to_py(py: Python<'_>, node: &xa11y::TreeNode) -> PyResult<Py<PyAny>> {
     let dict = PyDict::new(py);
     dict.set_item("role", &node.role)?;
     match &node.name {
@@ -250,7 +250,7 @@ fn tree_node_to_py(py: Python<'_>, node: &xa11y::TreeNode) -> PyResult<PyObject>
         Some(v) => dict.set_item("value", v)?,
         None => dict.set_item("value", py.None())?,
     }
-    let children: Vec<PyObject> = node
+    let children: Vec<Py<PyAny>> = node
         .children
         .iter()
         .map(|child| tree_node_to_py(py, child))
@@ -261,7 +261,8 @@ fn tree_node_to_py(py: Python<'_>, node: &xa11y::TreeNode) -> PyResult<PyObject>
 
 // ── Data Classes ────────────────────────────────────────────────────────────
 
-#[pyclass(frozen)]
+// `skip_from_py_object`: output-only, and nothing extracts one from Python.
+#[pyclass(frozen, skip_from_py_object)]
 #[derive(Clone)]
 struct Rect {
     #[pyo3(get)]
@@ -360,7 +361,7 @@ impl Element {
         let provider = self.provider.clone();
         let data = self.inner_data.clone();
         let children = py
-            .allow_threads(move || provider.get_children(Some(&data)))
+            .detach(move || provider.get_children(Some(&data)))
             .map_err(to_py_err)?;
         children
             .iter()
@@ -373,7 +374,7 @@ impl Element {
         let provider = self.provider.clone();
         let data = self.inner_data.clone();
         let parent = py
-            .allow_threads(move || provider.get_parent(&data))
+            .detach(move || provider.get_parent(&data))
             .map_err(to_py_err)?;
         match parent {
             Some(p) => Ok(Some(make_py_element(py, &p, self.provider.clone())?)),
@@ -386,7 +387,7 @@ impl Element {
         let provider = self.provider.clone();
         let data = self.inner_data.clone();
         let sub = py
-            .allow_threads(move || provider.subscribe(&data))
+            .detach(move || provider.subscribe(&data))
             .map_err(to_py_err)?;
         Ok(Subscription {
             inner: std::sync::Mutex::new(Some(sub)),
@@ -400,10 +401,10 @@ impl Element {
     /// (a list of dicts with the same shape). ``max_depth`` limits traversal:
     /// ``0`` = only this node, ``1`` = node + direct children, ``None`` = full subtree.
     #[pyo3(signature = (max_depth=None))]
-    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<PyObject> {
+    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<Py<PyAny>> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
         let node = py
-            .allow_threads(move || element.tree(max_depth))
+            .detach(move || element.tree(max_depth))
             .map_err(to_py_err)?;
         tree_node_to_py(py, &node)
     }
@@ -414,7 +415,7 @@ impl Element {
     #[pyo3(signature = (max_depth=None))]
     fn dump(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<String> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.dump(max_depth))
+        py.detach(move || element.dump(max_depth))
             .map_err(to_py_err)
     }
 
@@ -438,7 +439,7 @@ impl Element {
     /// the cross-platform fields (`role`, `name`, `states`, etc.) for
     /// portable logic.
     #[getter]
-    fn raw(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn raw(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         for (k, v) in &self.inner_data.raw {
             dict.set_item(k, json_to_py(py, v)?)?;
@@ -454,94 +455,94 @@ impl Element {
     /// Press (default activate) this element.
     fn press(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.press()).map_err(to_py_err)
+        py.detach(move || element.press()).map_err(to_py_err)
     }
     /// Move keyboard focus to this element.
     fn focus(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.focus()).map_err(to_py_err)
+        py.detach(move || element.focus()).map_err(to_py_err)
     }
     /// Remove keyboard focus from this element.
     fn blur(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.blur()).map_err(to_py_err)
+        py.detach(move || element.blur()).map_err(to_py_err)
     }
     /// Toggle this element's checked state.
     fn toggle(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.toggle())
+        py.detach(move || element.toggle())
             .map_err(to_py_err)
     }
     /// Expand this element (e.g. tree node, combo box).
     fn expand(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.expand())
+        py.detach(move || element.expand())
             .map_err(to_py_err)
     }
     /// Collapse this element.
     fn collapse(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.collapse())
+        py.detach(move || element.collapse())
             .map_err(to_py_err)
     }
     /// Select this element (e.g. list item, tab).
     fn select(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.select())
+        py.detach(move || element.select())
             .map_err(to_py_err)
     }
     /// Show this element's context menu.
     fn show_menu(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.show_menu())
+        py.detach(move || element.show_menu())
             .map_err(to_py_err)
     }
     /// Scroll this element into view.
     fn scroll_into_view(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.scroll_into_view())
+        py.detach(move || element.scroll_into_view())
             .map_err(to_py_err)
     }
     /// Increment this element's value (e.g. slider, spinner).
     fn increment(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.increment())
+        py.detach(move || element.increment())
             .map_err(to_py_err)
     }
     /// Decrement this element's value.
     fn decrement(&self, py: Python<'_>) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.decrement())
+        py.detach(move || element.decrement())
             .map_err(to_py_err)
     }
     /// Replace this element's text value.
     fn set_value(&self, py: Python<'_>, value: &str) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.set_value(value))
+        py.detach(move || element.set_value(value))
             .map_err(to_py_err)
     }
     /// Set this element's numeric value.
     fn set_numeric_value(&self, py: Python<'_>, value: f64) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.set_numeric_value(value))
+        py.detach(move || element.set_numeric_value(value))
             .map_err(to_py_err)
     }
     /// Insert text at the current cursor position.
     fn type_text(&self, py: Python<'_>, text: &str) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.type_text(text))
+        py.detach(move || element.type_text(text))
             .map_err(to_py_err)
     }
     /// Select the text range from `start` to `end` (0-based character offsets).
     fn select_text(&self, py: Python<'_>, start: u32, end: u32) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.select_text(start, end))
+        py.detach(move || element.select_text(start, end))
             .map_err(to_py_err)
     }
     /// Perform an action by its ``snake_case`` name.
     fn perform_action(&self, py: Python<'_>, action: &str) -> PyResult<()> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.perform_action(action))
+        py.detach(move || element.perform_action(action))
             .map_err(to_py_err)
     }
 
@@ -622,18 +623,18 @@ impl Locator {
 
     fn exists(&self, py: Python<'_>) -> PyResult<bool> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.exists()).map_err(to_py_err)
+        py.detach(move || inner.exists()).map_err(to_py_err)
     }
 
     fn count(&self, py: Python<'_>) -> PyResult<usize> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.count()).map_err(to_py_err)
+        py.detach(move || inner.count()).map_err(to_py_err)
     }
 
     fn element(&self, py: Python<'_>) -> PyResult<Py<Element>> {
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.element())
+            .detach(move || inner.element())
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -641,7 +642,7 @@ impl Locator {
     fn elements(&self, py: Python<'_>) -> PyResult<Vec<Py<Element>>> {
         let inner = self.inner.clone();
         let els = py
-            .allow_threads(move || inner.elements())
+            .detach(move || inner.elements())
             .map_err(to_py_err)?;
         els.iter()
             .map(|el| make_py_element(py, el.data(), el.provider().clone()))
@@ -658,10 +659,10 @@ impl Locator {
     /// Resolves the selector once; fails fast with
     /// :class:`SelectorNotMatchedError` if no match — does not auto-wait.
     #[pyo3(signature = (max_depth=None))]
-    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<PyObject> {
+    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<Py<PyAny>> {
         let locator = self.inner.clone();
         let node = py
-            .allow_threads(move || locator.tree(max_depth))
+            .detach(move || locator.tree(max_depth))
             .map_err(to_py_err)?;
         tree_node_to_py(py, &node)
     }
@@ -673,7 +674,7 @@ impl Locator {
     #[pyo3(signature = (max_depth=None))]
     fn dump(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<String> {
         let locator = self.inner.clone();
-        py.allow_threads(move || locator.dump(max_depth))
+        py.detach(move || locator.dump(max_depth))
             .map_err(to_py_err)
     }
 
@@ -681,76 +682,76 @@ impl Locator {
 
     fn press(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.press()).map_err(to_py_err)
+        py.detach(move || inner.press()).map_err(to_py_err)
     }
     fn focus(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.focus()).map_err(to_py_err)
+        py.detach(move || inner.focus()).map_err(to_py_err)
     }
     fn blur(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.blur()).map_err(to_py_err)
+        py.detach(move || inner.blur()).map_err(to_py_err)
     }
     fn toggle(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.toggle()).map_err(to_py_err)
+        py.detach(move || inner.toggle()).map_err(to_py_err)
     }
     fn expand(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.expand()).map_err(to_py_err)
+        py.detach(move || inner.expand()).map_err(to_py_err)
     }
     fn collapse(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.collapse())
+        py.detach(move || inner.collapse())
             .map_err(to_py_err)
     }
     fn select(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.select()).map_err(to_py_err)
+        py.detach(move || inner.select()).map_err(to_py_err)
     }
     fn show_menu(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.show_menu())
+        py.detach(move || inner.show_menu())
             .map_err(to_py_err)
     }
     fn scroll_into_view(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.scroll_into_view())
+        py.detach(move || inner.scroll_into_view())
             .map_err(to_py_err)
     }
     fn increment(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.increment())
+        py.detach(move || inner.increment())
             .map_err(to_py_err)
     }
     fn decrement(&self, py: Python<'_>) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.decrement())
+        py.detach(move || inner.decrement())
             .map_err(to_py_err)
     }
     fn set_value(&self, py: Python<'_>, value: &str) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.set_value(value))
+        py.detach(move || inner.set_value(value))
             .map_err(to_py_err)
     }
     fn set_numeric_value(&self, py: Python<'_>, value: f64) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.set_numeric_value(value))
+        py.detach(move || inner.set_numeric_value(value))
             .map_err(to_py_err)
     }
     fn type_text(&self, py: Python<'_>, text: &str) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.type_text(text))
+        py.detach(move || inner.type_text(text))
             .map_err(to_py_err)
     }
     fn select_text(&self, py: Python<'_>, start: u32, end: u32) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.select_text(start, end))
+        py.detach(move || inner.select_text(start, end))
             .map_err(to_py_err)
     }
     fn perform_action(&self, py: Python<'_>, action: &str) -> PyResult<()> {
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.perform_action(action))
+        py.detach(move || inner.perform_action(action))
             .map_err(to_py_err)
     }
 
@@ -766,7 +767,7 @@ impl Locator {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.wait_visible(timeout))
+            .detach(move || inner.wait_visible(timeout))
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -776,7 +777,7 @@ impl Locator {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.wait_attached(timeout))
+            .detach(move || inner.wait_attached(timeout))
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -785,7 +786,7 @@ impl Locator {
     fn wait_detached(&self, py: Python<'_>, timeout: Option<f64>) -> PyResult<()> {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.wait_detached(timeout))
+        py.detach(move || inner.wait_detached(timeout))
             .map_err(to_py_err)
     }
 
@@ -794,7 +795,7 @@ impl Locator {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.wait_enabled(timeout))
+            .detach(move || inner.wait_enabled(timeout))
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -803,7 +804,7 @@ impl Locator {
     fn wait_hidden(&self, py: Python<'_>, timeout: Option<f64>) -> PyResult<()> {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
-        py.allow_threads(move || inner.wait_hidden(timeout))
+        py.detach(move || inner.wait_hidden(timeout))
             .map_err(to_py_err)
     }
 
@@ -812,7 +813,7 @@ impl Locator {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.wait_disabled(timeout))
+            .detach(move || inner.wait_disabled(timeout))
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -822,7 +823,7 @@ impl Locator {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.wait_focused(timeout))
+            .detach(move || inner.wait_focused(timeout))
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -832,7 +833,7 @@ impl Locator {
         let timeout = effective_timeout(timeout)?;
         let inner = self.inner.clone();
         let el = py
-            .allow_threads(move || inner.wait_unfocused(timeout))
+            .detach(move || inner.wait_unfocused(timeout))
             .map_err(to_py_err)?;
         make_py_element(py, el.data(), el.provider().clone())
     }
@@ -846,7 +847,7 @@ impl Locator {
     fn wait_until(
         &self,
         py: Python<'_>,
-        predicate: PyObject,
+        predicate: Py<PyAny>,
         timeout: Option<f64>,
     ) -> PyResult<()> {
         let timeout = effective_timeout(timeout)?;
@@ -859,15 +860,15 @@ impl Locator {
         // burning the remaining timeout; the stash check after the loop
         // takes precedence over the loop's own result.
         let pred_err: std::sync::Mutex<Option<PyErr>> = std::sync::Mutex::new(None);
-        let result = py.allow_threads(|| {
+        let result = py.detach(|| {
             inner.wait_until(
                 |element_data: Option<&xa11y::ElementData>| {
-                    Python::with_gil(|py| -> bool {
+                    Python::attach(|py| -> bool {
                         let mut stash = pred_err.lock().unwrap_or_else(|e| e.into_inner());
                         if stash.is_some() {
                             return true;
                         }
-                        let arg: PyObject = match element_data {
+                        let arg: Py<PyAny> = match element_data {
                             Some(data) => match make_py_element(py, data, provider.clone()) {
                                 Ok(el) => el.into_any(),
                                 Err(e) => {
@@ -986,7 +987,8 @@ impl EventType {
 
 // ── Event ──────────────────────────────────────────────────────────────────
 
-#[pyclass(frozen)]
+// `skip_from_py_object`: output-only, and nothing extracts one from Python.
+#[pyclass(frozen, skip_from_py_object)]
 #[derive(Clone)]
 struct Event {
     /// String representation of the event kind (e.g. "focus_changed").
@@ -1073,14 +1075,14 @@ impl Subscription {
     fn recv(&self, py: Python<'_>, timeout: f64) -> PyResult<Event> {
         let dur = Duration::from_secs_f64(timeout);
         let provider = self.provider.clone();
-        py.allow_threads(|| {
+        py.detach(|| {
             self.with_sub(|sub| sub.recv(dur).map(|e| Event::from_core(e, provider)))
         })
         .and_then(|r| r.map_err(to_py_err))
     }
 
     #[pyo3(signature = (predicate, timeout=5.0))]
-    fn wait_for(&self, py: Python<'_>, predicate: PyObject, timeout: f64) -> PyResult<Event> {
+    fn wait_for(&self, py: Python<'_>, predicate: Py<PyAny>, timeout: f64) -> PyResult<Event> {
         let dur = Duration::from_secs_f64(timeout);
         let start = std::time::Instant::now();
         let mut seen: usize = 0;
@@ -1100,7 +1102,7 @@ impl Subscription {
             let provider = self.provider.clone();
             // Use recv_status so a sender-disconnect is surfaced explicitly
             // rather than silently spinning forever (tenet 1).
-            let status = py.allow_threads(|| self.with_sub(|sub| sub.recv_status(poll)))?;
+            let status = py.detach(|| self.with_sub(|sub| sub.recv_status(poll)))?;
             let py_event = match status {
                 xa11y::RecvStatus::Event(evt) => Event::from_core(*evt, provider),
                 xa11y::RecvStatus::Timeout => {
@@ -1162,7 +1164,7 @@ impl Subscription {
         // recv_status lets us surface only the actual end-of-stream condition
         // as StopIteration (tenet 1: no silent fallbacks).
         loop {
-            let status = py.allow_threads(|| {
+            let status = py.detach(|| {
                 self.with_sub(|sub| sub.recv_status(Duration::from_millis(100)))
             })?;
             match status {
@@ -1246,7 +1248,7 @@ impl App {
         let timeout = effective_timeout(timeout)?;
         let provider = get_provider()?;
         let app = py
-            .allow_threads(move || xa11y::App::by_name_with(provider, name, timeout))
+            .detach(move || xa11y::App::by_name_with(provider, name, timeout))
             .map_err(to_py_err)?;
         Ok(Self::from_core(app))
     }
@@ -1273,7 +1275,7 @@ impl App {
         let timeout = effective_timeout(timeout)?;
         let provider = get_provider()?;
         let app = py
-            .allow_threads(move || xa11y::App::by_pid_with(provider, pid, timeout))
+            .detach(move || xa11y::App::by_pid_with(provider, pid, timeout))
             .map_err(to_py_err)?;
         Ok(Self::from_core(app))
     }
@@ -1291,7 +1293,7 @@ impl App {
         let timeout = effective_timeout(timeout)?;
         let provider = get_provider()?;
         let app = py
-            .allow_threads(move || xa11y::App::foreground_with(provider, timeout))
+            .detach(move || xa11y::App::foreground_with(provider, timeout))
             .map_err(to_py_err)?;
         Ok(Self::from_core(app))
     }
@@ -1305,7 +1307,7 @@ impl App {
     fn list(py: Python<'_>) -> PyResult<Vec<Self>> {
         let provider = get_provider()?;
         let apps = py
-            .allow_threads(move || xa11y::App::list_with(provider))
+            .detach(move || xa11y::App::list_with(provider))
             .map_err(to_py_err)?;
         Ok(apps.into_iter().map(Self::from_core).collect())
     }
@@ -1329,7 +1331,7 @@ impl App {
     /// ```
     #[staticmethod]
     #[pyo3(signature = (predicate, *, timeout=None))]
-    fn find(py: Python<'_>, predicate: PyObject, timeout: Option<f64>) -> PyResult<Self> {
+    fn find(py: Python<'_>, predicate: Py<PyAny>, timeout: Option<f64>) -> PyResult<Self> {
         let timeout = effective_timeout(timeout)?;
         let provider = get_provider()?;
         // The poll loop runs with the GIL released (tenet 5); the predicate
@@ -1346,13 +1348,13 @@ impl App {
         // "no match".
         //
         // A `Mutex` rather than a `RefCell`: the closure crosses
-        // `allow_threads`, which requires it to be `Send`, and `&RefCell` is
+        // `detach`, which requires it to be `Send`, and `&RefCell` is
         // not. There is no contention — the predicate runs on this thread —
         // so the lock costs nothing.
         let pred_err: std::sync::Mutex<Option<PyErr>> = std::sync::Mutex::new(None);
-        let result = py.allow_threads(|| {
+        let result = py.detach(|| {
             xa11y::App::try_find_with(provider.clone(), timeout, |data| {
-                Python::with_gil(|py| -> xa11y::Result<bool> {
+                Python::attach(|py| -> xa11y::Result<bool> {
                     let outcome: PyResult<bool> = (|| {
                         let app = Py::new(py, App::from_data(data, provider.clone()))?;
                         predicate.call1(py, (app,))?.bind(py).is_truthy()
@@ -1431,7 +1433,7 @@ impl App {
         let provider = self.provider.clone();
         let data = self.inner_data.clone();
         let sub = py
-            .allow_threads(move || provider.subscribe(&data))
+            .detach(move || provider.subscribe(&data))
             .map_err(to_py_err)?;
         Ok(Subscription {
             inner: std::sync::Mutex::new(Some(sub)),
@@ -1444,7 +1446,7 @@ impl App {
         let provider = self.provider.clone();
         let data = self.inner_data.clone();
         let children = py
-            .allow_threads(move || provider.get_children(Some(&data)))
+            .detach(move || provider.get_children(Some(&data)))
             .map_err(to_py_err)?;
         children
             .iter()
@@ -1469,10 +1471,10 @@ impl App {
     ///
     /// Equivalent to ``Element.tree(...)`` on the application's root element.
     #[pyo3(signature = (max_depth=None))]
-    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<PyObject> {
+    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<Py<PyAny>> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
         let node = py
-            .allow_threads(move || element.tree(max_depth))
+            .detach(move || element.tree(max_depth))
             .map_err(to_py_err)?;
         tree_node_to_py(py, &node)
     }
@@ -1488,7 +1490,7 @@ impl App {
     #[pyo3(signature = (max_depth=None))]
     fn dump(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<String> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.dump(max_depth))
+        py.detach(move || element.dump(max_depth))
             .map_err(to_py_err)
     }
 
@@ -1638,7 +1640,7 @@ impl ShellSurface {
         let provider = self.provider.clone();
         let data = self.inner_data.clone();
         let children = py
-            .allow_threads(move || provider.get_children(Some(&data)))
+            .detach(move || provider.get_children(Some(&data)))
             .map_err(to_py_err)?;
         children
             .iter()
@@ -1663,10 +1665,10 @@ impl ShellSurface {
     ///
     /// Equivalent to ``Element.tree(...)`` on the surface's root element.
     #[pyo3(signature = (max_depth=None))]
-    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<PyObject> {
+    fn tree(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<Py<PyAny>> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
         let node = py
-            .allow_threads(move || element.tree(max_depth))
+            .detach(move || element.tree(max_depth))
             .map_err(to_py_err)?;
         tree_node_to_py(py, &node)
     }
@@ -1680,7 +1682,7 @@ impl ShellSurface {
     #[pyo3(signature = (max_depth=None))]
     fn dump(&self, py: Python<'_>, max_depth: Option<usize>) -> PyResult<String> {
         let element = xa11y::Element::new(self.inner_data.clone(), self.provider.clone());
-        py.allow_threads(move || element.dump(max_depth))
+        py.detach(move || element.dump(max_depth))
             .map_err(to_py_err)
     }
 
@@ -1718,7 +1720,7 @@ impl ShellSurface {
         // Enumeration blocks — on macOS it fans out over every running process
         // — so it runs with the GIL released (tenet 5).
         let surfaces = py
-            .allow_threads(move || xa11y::ShellSurface::list_with(enumerating))
+            .detach(move || xa11y::ShellSurface::list_with(enumerating))
             .map_err(to_py_err)?;
         Ok(surfaces
             .iter()
@@ -1739,7 +1741,7 @@ impl ShellSurface {
         // would freeze every other thread in the process for the whole
         // timeout (tenet 5).
         let surface = py
-            .allow_threads(move || xa11y::ShellSurface::by_kind_with(polling, kind, timeout))
+            .detach(move || xa11y::ShellSurface::by_kind_with(polling, kind, timeout))
             .map_err(to_py_err)?;
         Ok(Self::from_core(&surface, provider))
     }
@@ -1751,7 +1753,7 @@ impl ShellSurface {
 // `click_with` / `drag_with` folded into keyword-only arguments of `click` /
 // `drag`, enum values as identically-spelled snake_case strings in both
 // bindings, durations in seconds on the Python side, every argument parsed
-// before an OS event is posted, and each OS call inside `allow_threads`.
+// before an OS event is posted, and each OS call inside `detach`.
 // Read that section before adding a method here.
 
 /// Input-simulation façade. Constructed via [`input_sim()`][input_sim_fn].
@@ -1791,7 +1793,7 @@ impl InputSim {
             .button(parse_button(button)?)
             .count(count)
             .held(parse_keys(held)?);
-        py.allow_threads(move || {
+        py.detach(move || {
             self.inner
                 .mouse()
                 .click_with(xa11y::ClickTarget::Point(pt), opts)
@@ -1802,21 +1804,21 @@ impl InputSim {
     /// Left double-click at `target`.
     fn double_click(&self, py: Python<'_>, target: Bound<'_, PyAny>) -> PyResult<()> {
         let pt = parse_target(&target)?;
-        py.allow_threads(move || self.inner.mouse().double_click(pt))
+        py.detach(move || self.inner.mouse().double_click(pt))
             .map_err(to_py_err)
     }
 
     /// Right-click at `target`.
     fn right_click(&self, py: Python<'_>, target: Bound<'_, PyAny>) -> PyResult<()> {
         let pt = parse_target(&target)?;
-        py.allow_threads(move || self.inner.mouse().right_click(pt))
+        py.detach(move || self.inner.mouse().right_click(pt))
             .map_err(to_py_err)
     }
 
     /// Move the pointer to `target` without pressing any button.
     fn move_to(&self, py: Python<'_>, target: Bound<'_, PyAny>) -> PyResult<()> {
         let pt = parse_target(&target)?;
-        py.allow_threads(move || self.inner.mouse().move_to(pt))
+        py.detach(move || self.inner.mouse().move_to(pt))
             .map_err(to_py_err)
     }
 
@@ -1828,7 +1830,7 @@ impl InputSim {
     #[pyo3(signature = (button="left"))]
     fn mouse_down(&self, py: Python<'_>, button: &str) -> PyResult<()> {
         let b = parse_button(button)?;
-        py.allow_threads(move || self.inner.mouse().down(b))
+        py.detach(move || self.inner.mouse().down(b))
             .map_err(to_py_err)
     }
 
@@ -1836,7 +1838,7 @@ impl InputSim {
     #[pyo3(signature = (button="left"))]
     fn mouse_up(&self, py: Python<'_>, button: &str) -> PyResult<()> {
         let b = parse_button(button)?;
-        py.allow_threads(move || self.inner.mouse().up(b))
+        py.detach(move || self.inner.mouse().up(b))
             .map_err(to_py_err)
     }
 
@@ -1862,7 +1864,7 @@ impl InputSim {
             .button(parse_button(button)?)
             .held(parse_keys(held)?)
             .duration(parse_duration(duration)?);
-        py.allow_threads(move || self.inner.mouse().drag_with(from, to, opts))
+        py.detach(move || self.inner.mouse().drag_with(from, to, opts))
             .map_err(to_py_err)
     }
 
@@ -1871,7 +1873,7 @@ impl InputSim {
     #[pyo3(signature = (target, dx=0, dy=0))]
     fn scroll(&self, py: Python<'_>, target: Bound<'_, PyAny>, dx: i32, dy: i32) -> PyResult<()> {
         let pt = parse_target(&target)?;
-        py.allow_threads(move || {
+        py.detach(move || {
             self.inner
                 .mouse()
                 .scroll(pt, xa11y::ScrollDelta::new(dx, dy))
@@ -1882,7 +1884,7 @@ impl InputSim {
     /// Tap a key (press + release). See the class docstring for key names.
     fn press(&self, py: Python<'_>, key: &str) -> PyResult<()> {
         let k = parse_key(key)?;
-        py.allow_threads(move || self.inner.keyboard().press(k))
+        py.detach(move || self.inner.keyboard().press(k))
             .map_err(to_py_err)
     }
 
@@ -1891,7 +1893,7 @@ impl InputSim {
     fn chord(&self, py: Python<'_>, key: &str, held: Vec<String>) -> PyResult<()> {
         let k = parse_key(key)?;
         let held: Vec<_> = held.iter().map(|s| parse_key(s)).collect::<PyResult<_>>()?;
-        py.allow_threads(move || self.inner.keyboard().chord(k, &held))
+        py.detach(move || self.inner.keyboard().chord(k, &held))
             .map_err(to_py_err)
     }
 
@@ -1902,20 +1904,20 @@ impl InputSim {
     /// as holding a key across several other actions.
     fn key_down(&self, py: Python<'_>, key: &str) -> PyResult<()> {
         let k = parse_key(key)?;
-        py.allow_threads(move || self.inner.keyboard().down(k))
+        py.detach(move || self.inner.keyboard().down(k))
             .map_err(to_py_err)
     }
 
     /// Release a key previously pressed with `key_down()`.
     fn key_up(&self, py: Python<'_>, key: &str) -> PyResult<()> {
         let k = parse_key(key)?;
-        py.allow_threads(move || self.inner.keyboard().up(k))
+        py.detach(move || self.inner.keyboard().up(k))
             .map_err(to_py_err)
     }
 
     /// Type literal text into the currently focused control.
     fn type_text(&self, py: Python<'_>, text: &str) -> PyResult<()> {
-        py.allow_threads(move || self.inner.keyboard().type_text(text))
+        py.detach(move || self.inner.keyboard().type_text(text))
             .map_err(to_py_err)
     }
 }
@@ -1935,7 +1937,7 @@ fn parse_target_anchored(
     target: &Bound<'_, PyAny>,
     anchor: xa11y::Anchor,
 ) -> PyResult<xa11y::Point> {
-    if let Ok(el) = target.downcast::<Element>() {
+    if let Ok(el) = target.cast::<Element>() {
         let element = el.borrow();
         let (x, y, width, height) = element
             .bounds_data
@@ -2073,7 +2075,8 @@ fn input_sim() -> PyResult<InputSim> {
 /// `bounds` is in logical screen coordinates — the same space as
 /// `Element.bounds`, not the capture's pixel space. `color` is the RGB triple
 /// the box was drawn in, for correlating a box with its entry by eye.
-#[pyclass(frozen)]
+// `skip_from_py_object`: output-only, and nothing extracts one from Python.
+#[pyclass(frozen, skip_from_py_object)]
 #[derive(Clone)]
 struct LegendEntry {
     /// What is drawn in the box — ``"B7"``.
@@ -2138,7 +2141,8 @@ impl LegendEntry {
 ///
 /// Reported rather than dropped: a legend that disagreed with the picture,
 /// with no way to find out why, is what this exists to prevent.
-#[pyclass(frozen)]
+// `skip_from_py_object`: output-only, and nothing extracts one from Python.
+#[pyclass(frozen, skip_from_py_object)]
 #[derive(Clone)]
 struct Omission {
     /// The selector that would reach this element.
@@ -2344,11 +2348,11 @@ fn screenshot(
         // No annotations requested: the plain capture path, unchanged.
         let shot = if let Some(element) = element {
             let el = xa11y::Element::new(element.inner_data.clone(), element.provider.clone());
-            py.allow_threads(move || xa11y::screenshot_element(&el))
+            py.detach(move || xa11y::screenshot_element(&el))
         } else if let Some(rect) = rect {
-            py.allow_threads(move || xa11y::screenshot_region(rect))
+            py.detach(move || xa11y::screenshot_region(rect))
         } else {
-            py.allow_threads(xa11y::screenshot)
+            py.detach(xa11y::screenshot)
         }
         .map_err(to_py_err)?;
         return Ok(Screenshot::plain(shot));
@@ -2357,7 +2361,7 @@ fn screenshot(
     // Everything that needs the GIL happens up here: the locators are parsed
     // and cloned out of their Python wrappers first. The capture, the tree
     // reads behind each locator, and the drawing all happen below, inside
-    // `allow_threads` (tenet 5).
+    // `detach` (tenet 5).
     let groups = annotate
         .iter()
         .map(parse_annotate_group)
@@ -2382,7 +2386,7 @@ fn screenshot(
     };
 
     let result = py
-        .allow_threads(move || xa11y::screenshot_annotated(rect, &groups))
+        .detach(move || xa11y::screenshot_annotated(rect, &groups))
         .map_err(to_py_err)?;
     Ok(Screenshot::annotated(result))
 }
@@ -2498,13 +2502,13 @@ fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
 /// failures to exceptions here meant the console script collapsed all of them
 /// to `1` and lost the `2` for usage errors.
 ///
-/// The whole run happens inside `allow_threads` (tenet 5). `cli::run` never
+/// The whole run happens inside `detach` (tenet 5). `cli::run` never
 /// calls back into Python, and it blocks for as long as the operation takes —
 /// the lifetime of the process for `xa11y events` and `xa11y mcp`. Holding the
 /// GIL across that would freeze every other thread in the interpreter.
 #[pyfunction]
 fn _cli_main(py: Python<'_>, args: Vec<String>) -> i32 {
-    py.allow_threads(move || xa11y::cli::run_main(&args))
+    py.detach(move || xa11y::cli::run_main(&args))
 }
 
 // ── Test helpers ────────────────────────────────────────────────────────────
@@ -2595,7 +2599,7 @@ impl TestActionProbe {
     }
 
     /// Recorded action log: list of `(handle, action_name, optional_data)`.
-    fn actions(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn actions(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let entries = self.provider.actions();
         let list = PyList::empty(py);
         for (handle, name, data) in entries {

@@ -12,7 +12,7 @@ accessibility bus exists. Issue #358 went unnoticed because that gap was not
 recorded anywhere.
 
 ``_cli_main`` is the other known gap, and it is deliberate. It wraps the whole
-CLI run in ``allow_threads`` (which matters most for ``xa11y events`` and
+CLI run in ``detach`` (which matters most for ``xa11y events`` and
 ``xa11y mcp``, both of which block for the life of the process), but no CLI
 subcommand blocks for a bounded, display-free duration, so a tick-counting
 assertion would be flaky. The one construction that is deterministic —

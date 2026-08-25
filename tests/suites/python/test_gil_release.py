@@ -71,7 +71,7 @@ def test_app_find_releases_gil_between_predicate_calls(app):
 def test_app_find_still_propagates_a_predicate_exception(app):
     """Releasing the GIL must not change how a raising predicate surfaces.
 
-    The predicate's exception is stashed across the ``allow_threads`` boundary
+    The predicate's exception is stashed across the ``detach`` boundary
     and re-raised; a regression here would show up as a misleading "no match"
     timeout instead of the caller's own error.
     """

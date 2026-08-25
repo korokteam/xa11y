@@ -513,7 +513,7 @@ Annotations outside the crop land in `omitted`; they are not clamped to the edge
 
 #### The GIL
 
-Selector resolution and pixel work both happen inside `py.allow_threads`. The
+Selector resolution and pixel work both happen inside `py.detach`. The
 `annotate=` arguments are parsed and the locators cloned before the block, since
 that needs the GIL (tenet 5, and the same shape `screenshot(element=...)`
 already has).
@@ -586,7 +586,7 @@ carries; this feature makes it visible rather than introducing it.
 | CLI | `tests/suites/cli/test_screenshot.py` | `--annotate` × launchers, `--legend json` shape, `--out -` + legend refused with exit 2 |
 | MCP raw | `tests/suites/cli/test_mcp.py` | argument validation, truncation flag |
 | MCP SDK | `tests/mcp_client/test_interop.py` | the real client's view of the new schema — both suites, per AGENTS.md |
-| Python | `xa11y-python/tests/`, `test_typing.py` | stub signature vs runtime; `test_gil_release.py` unaffected (annotating is CPU work inside `allow_threads`) |
+| Python | `xa11y-python/tests/`, `test_typing.py` | stub signature vs runtime; `test_gil_release.py` unaffected (annotating is CPU work inside `detach`) |
 | JS | `xa11y-js/__test__/unit/typing.test.js` | `index.d.ts` members exist on the runtime object |
 | Parity | `bindings/parity_allowlist.toml` | `Annotation`, `Annotated`, `LegendEntry`, `Omission`, `OmissionReason` classified; `Annotated` flattened into `Screenshot` |
 | Docs | `reference/cli.mdx`, `guides/mcp.mdx`, new guide page | Diátaxis banner + `pageType`; `cargo xtask lint-docs` |
