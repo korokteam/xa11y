@@ -533,31 +533,13 @@ Generating `_native.pyi` instead (with `pyo3-stub-gen`) is blocked: every versio
 
 ## New Public API Review Checklist
 
-When a PR adds new public API (a new verb, a new state, a new enumeration —
-window management in [#375](https://github.com/xa11y/xa11y/issues/375) is the
-motivating case), review it against all four of these before approving, and
-apply the same list to your own PR before opening it:
+When a PR adds new public API, review it by:
 
-1. **API shape** — is it modeled reasonably, and is it backward compatible?
-   Cross-check against [Public API Extensibility](#public-api-extensibility)
-   (`#[non_exhaustive]` vs. a closed domain, `reader_writer_pair!` for structs
-   with cross-crate writers) and [Design Tenets](#design-tenets) (tenet 3
-   action fidelity in particular — a new verb must dispatch to the real
-   platform primitive, not a substitute).
-2. **Exposed on every interface** — Rust (`xa11y-core` + the relevant
-   provider(s)), Python, JS, CLI, and MCP. `cargo xtask check-bindings-parity`
-   catches a type or member the bindings forgot, but a new CLI subcommand or
-   MCP tool has no equivalent automated gate — check by hand.
-3. **End-to-end test coverage** — an integration test for each interface that
-   exposes the feature, and at least one interface tested on all three
-   platforms (macOS, Windows, Linux). On Linux, cover both X11 and Wayland if
-   the feature behaves differently between them. See
-   [Integration Test Coverage](#integration-test-coverage) for how tests are
-   structured (`#[ignore]`, run via `cargo xtask test-integ`, test-app-first).
-4. **Documented** — public methods on `mirrored` types carry a doc comment
-   (binding stubs and the docs site generate from it), and any new concept
-   gets a page or a paragraph under `docs/site/src/content/docs/` per
-   [Docs Structure](#docs-structure-diátaxis).
+- API changes are modeled reasonably and backward compatible
+- exposed on all interfaces: Rust, Python, JS, CLI, MCP
+- an end-to-end test for each interface, and at least one interface tested on
+  all three platforms — X11 and Wayland both, if it makes a difference
+- documented
 
 ## Pre-Commit / Pre-PR Checklist
 
