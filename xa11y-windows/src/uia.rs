@@ -4,15 +4,21 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use windows::core::{implement, BOOL};
+use windows::core::{implement, Interface, BOOL, PCWSTR};
 use windows::Win32::Foundation::*;
 use windows::Win32::System::Com::{CoInitializeEx, COINIT};
 use windows::Win32::System::Variant::VARIANT;
 use windows::Win32::UI::Accessibility::*;
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, STATE_SYSTEM_SELECTED};
+use windows::Win32::UI::WindowsAndMessaging::{
+    EnumChildWindows, EnumWindows, FindWindowW, GetForegroundWindow, GetWindowTextW,
+    IsWindowVisible, STATE_SYSTEM_SELECTED,
+};
 
 use xa11y_core::{
-    selector::{matches_simple, Combinator, Selector, SelectorSegment},
+    selector::{
+        matches_simple, Combinator, MatchOp, RoleMatch, Selector, SelectorGroup, SelectorSegment,
+        SimpleSelector,
+    },
     CancelHandle, ElementData, ElementParts, Error, Event, EventKind, EventParts, EventReceiver,
     Provider, Rect, Result, Role, ShellSurfaceKind, StateFlag, StateParts, StateSet, Subscription,
     Toggled,
@@ -120,6 +126,143 @@ impl WindowsProvider {
         retry_transient(|| unsafe { self.automation.ElementFromHandle(hwnd) }).map_err(|_| ())
     }
 
+    /// UIA element for a native window handle, with the batch snapshot
+    /// populated so `build_element_data` reads from the cache.
+    fn element_from_hwnd(&self, hwnd: HWND) -> Result<ElementData> {
+        let el = uia_call(|| unsafe { self.automation.ElementFromHandle(hwnd) })?;
+        let el = self.populate_cache(&el).map_err(|e| Error::Platform {
+            code: e.code().0 as i64,
+            message: format!("BuildUpdatedCache failed: {}", e),
+        })?;
+        let pid = unsafe { el.CachedProcessId() }
+            .ok()
+            .map(|p| p as u32)
+            .filter(|p| *p != 0);
+        Ok(self.build_element_data(&el, pid))
+    }
+
+    fn or_conditions(
+        &self,
+        conditions: Vec<IUIAutomationCondition>,
+    ) -> Result<Option<IUIAutomationCondition>> {
+        let mut acc: Option<IUIAutomationCondition> = None;
+        for cond in conditions {
+            acc = Some(match acc {
+                None => cond,
+                Some(prev) => {
+                    uia_call(|| unsafe { self.automation.CreateOrCondition(&prev, &cond) })?
+                }
+            });
+        }
+        Ok(acc)
+    }
+
+    fn and_conditions(
+        &self,
+        conditions: Vec<IUIAutomationCondition>,
+    ) -> Result<Option<IUIAutomationCondition>> {
+        let mut acc: Option<IUIAutomationCondition> = None;
+        for cond in conditions {
+            acc = Some(match acc {
+                None => cond,
+                Some(prev) => {
+                    uia_call(|| unsafe { self.automation.CreateAndCondition(&prev, &cond) })?
+                }
+            });
+        }
+        Ok(acc)
+    }
+
+    /// UIA condition equivalent to the pushable part of a simple selector:
+    /// the role (as a set of control types) and the exact-match `name`,
+    /// `automation_id`, `class_name` and `[platform:…]` filters. Anything
+    /// else (substring operators, other attributes) stays with
+    /// `matches_simple`, so the condition is always a superset of the
+    /// selector. `None` when nothing narrows the search.
+    fn condition_for_simple(
+        &self,
+        simple: &SimpleSelector,
+    ) -> Result<Option<IUIAutomationCondition>> {
+        let mut conds: Vec<IUIAutomationCondition> = Vec::new();
+        match &simple.role {
+            Some(RoleMatch::Normalized(role)) => {
+                if let Some(types) = control_types_for_role(*role) {
+                    let mut alternatives = Vec::with_capacity(types.len());
+                    for ct in types {
+                        alternatives.push(uia_call(|| unsafe {
+                            self.automation.CreatePropertyCondition(
+                                UIA_ControlTypePropertyId,
+                                &VARIANT::from(ct.0),
+                            )
+                        })?);
+                    }
+                    if let Some(cond) = self.or_conditions(alternatives)? {
+                        conds.push(cond);
+                    }
+                }
+            }
+            Some(RoleMatch::Platform(class)) => {
+                conds.push(uia_call(|| unsafe {
+                    self.automation.CreatePropertyCondition(
+                        UIA_ClassNamePropertyId,
+                        &VARIANT::from(class.as_str()),
+                    )
+                })?);
+            }
+            None => {}
+        }
+        for filter in &simple.filters {
+            if filter.op != MatchOp::Exact || filter.value.is_empty() {
+                continue;
+            }
+            let property = match filter.attr.as_str() {
+                "name" => UIA_NamePropertyId,
+                "automation_id" => UIA_AutomationIdPropertyId,
+                "class_name" => UIA_ClassNamePropertyId,
+                _ => continue,
+            };
+            conds.push(uia_call(|| unsafe {
+                self.automation
+                    .CreatePropertyCondition(property, &VARIANT::from(filter.value.as_str()))
+            })?);
+        }
+        self.and_conditions(conds)
+    }
+
+    /// One condition for a whole group: the OR of every clause's first
+    /// segment. `None` as soon as one clause cannot be narrowed (the walk then
+    /// has to visit everything anyway).
+    fn condition_for_group(&self, group: &SelectorGroup) -> Result<Option<IUIAutomationCondition>> {
+        let mut per_clause = Vec::with_capacity(group.clauses.len());
+        for clause in &group.clauses {
+            let Some(first) = clause.segments.first() else {
+                return Ok(None);
+            };
+            match self.condition_for_simple(&first.simple)? {
+                Some(cond) => per_clause.push(cond),
+                None => return Ok(None),
+            }
+        }
+        self.or_conditions(per_clause)
+    }
+
+    /// `FindFirstBuildCache` over the subtree; `Ok(None)` when nothing matches.
+    fn find_first_in_subtree(
+        &self,
+        root: &IUIAutomationElement,
+        scope: TreeScope,
+        condition: &IUIAutomationCondition,
+    ) -> Result<Option<IUIAutomationElement>> {
+        match unsafe { root.FindFirstBuildCache(scope, condition, &self.batch_request) } {
+            Ok(el) => Ok(Some(el)),
+            Err(e) if e.code().is_ok() => Ok(None),
+            Err(e) => Err(Error::Platform {
+                code: e.code().0 as i64,
+                message: format!("FindFirstBuildCache failed: {e}"),
+            }),
+        }
+    }
+
     /// Find an application's root UIA element + window name by PID.
     ///
     /// Used by `subscribe_impl` to scope native UIA event handlers to a
@@ -171,37 +314,19 @@ impl WindowsProvider {
 
     /// Query UIA patterns from the element once, sharing across
     /// `get_value`, `get_actions`, and `parse_states` to avoid duplicate COM calls.
+    /// Patterns come from the element's cache snapshot (`batch_request` adds
+    /// them, so one `FindAllBuildCache` answers for the whole subtree). Only an
+    /// element with no pattern snapshot at all (event-path elements) falls
+    /// back to a live query; a cached "not supported" stays `None` without a
+    /// round trip into the provider.
     fn query_patterns(element: &IUIAutomationElement) -> ElementPatterns {
         ElementPatterns {
-            invoke: unsafe {
-                element.GetCurrentPatternAs::<IUIAutomationInvokePattern>(UIA_InvokePatternId)
-            }
-            .ok(),
-            toggle: unsafe {
-                element.GetCurrentPatternAs::<IUIAutomationTogglePattern>(UIA_TogglePatternId)
-            }
-            .ok(),
-            expand_collapse: unsafe {
-                element.GetCurrentPatternAs::<IUIAutomationExpandCollapsePattern>(
-                    UIA_ExpandCollapsePatternId,
-                )
-            }
-            .ok(),
-            value: unsafe {
-                element.GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId)
-            }
-            .ok(),
-            range_value: unsafe {
-                element
-                    .GetCurrentPatternAs::<IUIAutomationRangeValuePattern>(UIA_RangeValuePatternId)
-            }
-            .ok(),
-            selection_item: unsafe {
-                element.GetCurrentPatternAs::<IUIAutomationSelectionItemPattern>(
-                    UIA_SelectionItemPatternId,
-                )
-            }
-            .ok(),
+            invoke: pattern_cached_or_live(element, UIA_InvokePatternId),
+            toggle: pattern_cached_or_live(element, UIA_TogglePatternId),
+            expand_collapse: pattern_cached_or_live(element, UIA_ExpandCollapsePatternId),
+            value: pattern_cached_or_live(element, UIA_ValuePatternId),
+            range_value: pattern_cached_or_live(element, UIA_RangeValuePatternId),
+            selection_item: pattern_cached_or_live(element, UIA_SelectionItemPatternId),
         }
     }
 
@@ -707,6 +832,16 @@ fn create_batch_request(automation: &IUIAutomation) -> Result<IUIAutomationCache
         })?;
     }
 
+    // Patterns and their state properties travel in the same snapshot: without
+    // this every element cost six live `GetCurrentPattern` calls (+3 s on an
+    // 800-element PowerBuilder window).
+    for pattern in BATCH_PATTERNS {
+        unsafe { request.AddPattern(*pattern) }.map_err(|e| Error::Platform {
+            code: e.code().0 as i64,
+            message: format!("AddPattern({:?}) failed: {e}", pattern),
+        })?;
+    }
+
     // Use raw view (TrueCondition) so FindAllBuildCache sees all UIA elements,
     // including virtual/fragment elements from Qt, AccessKit, etc. that don't
     // set IsControlElement=true and are silently excluded by the default
@@ -741,7 +876,186 @@ const BATCH_PROPERTIES: &[UIA_PROPERTY_ID] = &[
     // MSAA role — the only role signal for providers that publish no UIA
     // control type (see `map_msaa_role`).
     UIA_LegacyIAccessibleRolePropertyId,
+    // Pattern state read through the cached patterns (`BATCH_PATTERNS`).
+    UIA_ValueValuePropertyId,
+    UIA_ValueIsReadOnlyPropertyId,
+    UIA_RangeValueValuePropertyId,
+    UIA_ToggleToggleStatePropertyId,
+    UIA_SelectionItemIsSelectedPropertyId,
+    UIA_ExpandCollapseExpandCollapseStatePropertyId,
 ];
+
+/// Patterns pre-fetched in every bulk query (see `query_patterns`).
+const BATCH_PATTERNS: &[UIA_PATTERN_ID] = &[
+    UIA_InvokePatternId,
+    UIA_TogglePatternId,
+    UIA_ExpandCollapsePatternId,
+    UIA_ValuePatternId,
+    UIA_RangeValuePatternId,
+    UIA_SelectionItemPatternId,
+];
+
+/// Pattern from the cache snapshot; live query only when the snapshot has no
+/// pattern data (an element that never went through `batch_request`).
+fn pattern_cached_or_live<T: Interface>(
+    element: &IUIAutomationElement,
+    id: UIA_PATTERN_ID,
+) -> Option<T> {
+    match unsafe { element.GetCachedPatternAs::<T>(id) } {
+        Ok(pattern) => Some(pattern),
+        // S_OK with a null pattern: the element does not support it.
+        Err(e) if e.code().is_ok() => None,
+        Err(_) => unsafe { element.GetCurrentPatternAs::<T>(id) }.ok(),
+    }
+}
+
+/// Every UIA control type `map_uia_control_type` knows about.
+const ALL_CONTROL_TYPES: &[UIA_CONTROLTYPE_ID] = &[
+    UIA_ButtonControlTypeId,
+    UIA_CheckBoxControlTypeId,
+    UIA_RadioButtonControlTypeId,
+    UIA_EditControlTypeId,
+    UIA_TextControlTypeId,
+    UIA_ComboBoxControlTypeId,
+    UIA_ListControlTypeId,
+    UIA_ListItemControlTypeId,
+    UIA_MenuControlTypeId,
+    UIA_MenuItemControlTypeId,
+    UIA_MenuBarControlTypeId,
+    UIA_TabControlTypeId,
+    UIA_TabItemControlTypeId,
+    UIA_TableControlTypeId,
+    UIA_DataGridControlTypeId,
+    UIA_DataItemControlTypeId,
+    UIA_ToolBarControlTypeId,
+    UIA_ScrollBarControlTypeId,
+    UIA_SliderControlTypeId,
+    UIA_ImageControlTypeId,
+    UIA_HyperlinkControlTypeId,
+    UIA_GroupControlTypeId,
+    UIA_WindowControlTypeId,
+    UIA_PaneControlTypeId,
+    UIA_ProgressBarControlTypeId,
+    UIA_TreeItemControlTypeId,
+    UIA_TreeControlTypeId,
+    UIA_DocumentControlTypeId,
+    UIA_HeaderControlTypeId,
+    UIA_HeaderItemControlTypeId,
+    UIA_SeparatorControlTypeId,
+    UIA_SpinnerControlTypeId,
+    UIA_SplitButtonControlTypeId,
+    UIA_StatusBarControlTypeId,
+    UIA_ThumbControlTypeId,
+    UIA_TitleBarControlTypeId,
+    UIA_ToolTipControlTypeId,
+    UIA_CalendarControlTypeId,
+    UIA_CustomControlTypeId,
+    UIA_SemanticZoomControlTypeId,
+    UIA_AppBarControlTypeId,
+];
+
+/// UIA control types whose snapshot role can end up as `role` — a superset,
+/// since `build_snapshot_data` still refines by AriaRole, IsDialog, TableItem
+/// and the MSAA role; `matches_simple` keeps the final word. `None` when the
+/// role cannot narrow the search (`unknown`, or a role only reachable from
+/// unmapped control types).
+fn control_types_for_role(role: Role) -> Option<Vec<UIA_CONTROLTYPE_ID>> {
+    if role == Role::Unknown {
+        return None;
+    }
+    let mapping_to = |targets: &[Role]| -> Vec<UIA_CONTROLTYPE_ID> {
+        ALL_CONTROL_TYPES
+            .iter()
+            .copied()
+            .filter(|ct| targets.contains(&map_uia_control_type(*ct)))
+            .collect()
+    };
+    let mut types = mapping_to(&[role]);
+    // AriaRole / IsDialog refine these four snapshot roles into other roles.
+    if matches!(
+        role,
+        Role::Alert
+            | Role::Dialog
+            | Role::Heading
+            | Role::Separator
+            | Role::ProgressBar
+            | Role::Link
+    ) {
+        types.extend(mapping_to(&[
+            Role::StaticText,
+            Role::Window,
+            Role::Group,
+            Role::Unknown,
+        ]));
+    }
+    if role == Role::TableCell {
+        types.extend([UIA_DataItemControlTypeId, UIA_CustomControlTypeId]);
+    }
+    // `Custom` elements take their role from MSAA (`map_msaa_role`).
+    if (0..=70).any(|legacy| map_msaa_role(legacy) == Some(role)) {
+        types.push(UIA_CustomControlTypeId);
+    }
+    types.sort_by_key(|ct| ct.0);
+    types.dedup();
+    (!types.is_empty()).then_some(types)
+}
+
+/// Visible HWNDs (top-level and children — MDI sheets and owned dialogs are
+/// child windows in Win32) whose title matches `title` under `op`, with the
+/// selector's own semantics (`=` exact and case-sensitive, the others
+/// case-insensitive). Pure Win32: no accessibility round trip, microseconds
+/// even on a busy desktop.
+fn hwnds_with_title(title: &str, op: &MatchOp) -> Vec<HWND> {
+    struct Busca<'a> {
+        alvo: &'a str,
+        op: &'a MatchOp,
+        achados: Vec<HWND>,
+    }
+    unsafe extern "system" fn visitar(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let busca = &mut *(lparam.0 as *mut Busca);
+        if IsWindowVisible(hwnd).as_bool() {
+            let mut buf = [0u16; 512];
+            let n = GetWindowTextW(hwnd, &mut buf) as usize;
+            if n > 0 {
+                let texto = String::from_utf16_lossy(&buf[..n]);
+                let bate = match busca.op {
+                    MatchOp::Exact => texto == busca.alvo,
+                    MatchOp::Contains => texto.to_lowercase().contains(&busca.alvo.to_lowercase()),
+                    MatchOp::StartsWith => {
+                        texto.to_lowercase().starts_with(&busca.alvo.to_lowercase())
+                    }
+                    MatchOp::EndsWith => texto.to_lowercase().ends_with(&busca.alvo.to_lowercase()),
+                };
+                if bate {
+                    busca.achados.push(hwnd);
+                }
+            }
+        }
+        BOOL(1)
+    }
+    unsafe extern "system" fn visitar_topo(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let _ = visitar(hwnd, lparam);
+        if IsWindowVisible(hwnd).as_bool() {
+            let _ = EnumChildWindows(Some(hwnd), Some(visitar), lparam);
+        }
+        BOOL(1)
+    }
+    let mut busca = Busca {
+        alvo: title,
+        op,
+        achados: Vec::new(),
+    };
+    if title.is_empty() {
+        return Vec::new();
+    }
+    unsafe {
+        let _ = EnumWindows(
+            Some(visitar_topo),
+            LPARAM(&mut busca as *mut Busca as isize),
+        );
+    }
+    busca.achados
+}
 
 /// Safe wrapper for IUIAutomationElementArray::Length.
 fn uia_len(arr: &IUIAutomationElementArray) -> i32 {
@@ -1100,6 +1414,32 @@ impl Provider for WindowsProvider {
         self.get_children(None)
     }
 
+    /// `FindWindowW` by exact title (Win32, no UIA enumeration) → element.
+    fn app_by_name(&self, name: &str) -> Result<Option<ElementData>> {
+        let mut title: Vec<u16> = name.encode_utf16().collect();
+        if title.is_empty() {
+            return Ok(None);
+        }
+        title.push(0);
+        let Ok(hwnd) = (unsafe { FindWindowW(PCWSTR::null(), PCWSTR(title.as_ptr())) }) else {
+            return Ok(None);
+        };
+        if hwnd.0.is_null() {
+            return Ok(None);
+        }
+        self.element_from_hwnd(hwnd).map(Some)
+    }
+
+    /// Every visible window with this exact title, top-level or child (MDI
+    /// sheets, owned dialogs), straight from the handle.
+    fn windows_by_title(&self, name: &str, op: &MatchOp) -> Result<Option<Vec<ElementData>>> {
+        let mut out = Vec::new();
+        for hwnd in hwnds_with_title(name, op) {
+            out.push(self.element_from_hwnd(hwnd)?);
+        }
+        Ok(Some(out))
+    }
+
     /// Attach to an application directly by pid via a UIA `ProcessId`
     /// property search over the desktop root's children.
     ///
@@ -1202,6 +1542,37 @@ impl Provider for WindowsProvider {
                         }
                     }
                     Combinator::Descendant => {
+                        // HWND-rooted candidates take the UIA-filtered descendant
+                        // query (one call, only the hits get a snapshot). Fragment
+                        // roots (no HWND) and explicit depth limits keep the
+                        // level-by-level walk below.
+                        if max_depth == xa11y_core::MAX_TREE_DEPTH {
+                            let live = self.get_cached(candidate.handle)?;
+                            let has_hwnd = unsafe { live.CachedNativeWindowHandle() }
+                                .ok()
+                                .is_some_and(|h| !h.0.is_null());
+                            if has_hwnd {
+                                if let Some(cond) = self.condition_for_simple(&segment.simple)? {
+                                    let found = uia_call(|| unsafe {
+                                        live.FindAllBuildCache(
+                                            TreeScope_Descendants,
+                                            &cond,
+                                            &self.batch_request,
+                                        )
+                                    })?;
+                                    for i in 0..uia_len(&found) {
+                                        let Some(el) = uia_get(&found, i) else {
+                                            continue;
+                                        };
+                                        let data = self.build_element_data(&el, candidate.pid);
+                                        if matches_simple(&data, &segment.simple) {
+                                            next_candidates.push(data);
+                                        }
+                                    }
+                                    continue;
+                                }
+                            }
+                        }
                         // Walk level-by-level to avoid provider-activation boundary
                         // issues with FindAllBuildCache(Subtree) on fragment elements.
                         let sub_selector = Selector {
@@ -1310,8 +1681,46 @@ impl Provider for WindowsProvider {
             );
         }
 
+        // Selector pushdown: when every clause's first segment narrows to a
+        // UIA condition, UIA filters while it walks and only the candidates
+        // get a snapshot. A single-clause lookup for one element goes through
+        // `FindFirst`, which stops at the first hit in document order.
+        let pushed = self.condition_for_group(group)?;
+        if let (Some(cond), Some(1), [clause]) = (&pushed, limit, group.clauses.as_slice()) {
+            if clause.segments[0].simple.nth.unwrap_or(1) == 1 {
+                match self.find_first_in_subtree(&uia_root, TreeScope_Subtree, cond)? {
+                    // Nothing satisfies even the superset condition.
+                    None => return Ok(vec![]),
+                    Some(first) => {
+                        let data = self.build_element_data(&first, pid);
+                        if matches_simple(&data, &clause.segments[0].simple) {
+                            if clause.segments.len() == 1 {
+                                return Ok(vec![data]);
+                            }
+                            let narrowed = self.narrow_multi_segment(
+                                vec![data],
+                                &clause.segments[1..],
+                                max_depth_val,
+                                Some(1),
+                            )?;
+                            if !narrowed.is_empty() {
+                                return Ok(narrowed);
+                            }
+                        }
+                        // The first UIA hit was not a real match: fall through
+                        // to the filtered walk.
+                    }
+                }
+            }
+        }
+
         // One COM call fetches the whole subtree in doc order.
-        let subtree = self.find_all_subtree(&uia_root)?;
+        let subtree = match &pushed {
+            Some(cond) => uia_call(|| unsafe {
+                uia_root.FindAllBuildCache(TreeScope_Subtree, cond, &self.batch_request)
+            })?,
+            None => self.find_all_subtree(&uia_root)?,
+        };
         let count = uia_len(&subtree);
 
         // Single-pass: visit every subtree element once and check every
@@ -1875,14 +2284,14 @@ fn get_value(role: Role, patterns: &ElementPatterns) -> Option<String> {
 
     // Try RangeValuePattern first (sliders, progress bars, spinners)
     if let Some(ref pattern) = patterns.range_value {
-        if let Ok(v) = unsafe { pattern.CurrentValue() } {
+        if let Ok(v) = unsafe { pattern.CachedValue().or_else(|_| pattern.CurrentValue()) } {
             return Some(v.to_string());
         }
     }
 
     // Try ValuePattern (text fields, combo boxes)
     if let Some(ref pattern) = patterns.value {
-        if let Ok(v) = unsafe { pattern.CurrentValue() } {
+        if let Ok(v) = unsafe { pattern.CachedValue().or_else(|_| pattern.CurrentValue()) } {
             let s = v.to_string();
             if !s.is_empty() {
                 return Some(s);
@@ -1998,7 +2407,11 @@ fn parse_states(
     let checked = match role {
         Role::CheckBox | Role::RadioButton => {
             if let Some(ref pattern) = patterns.toggle {
-                match unsafe { pattern.CurrentToggleState() } {
+                match unsafe {
+                    pattern
+                        .CachedToggleState()
+                        .or_else(|_| pattern.CurrentToggleState())
+                } {
                     Ok(ToggleState_On) => Some(Toggled::On),
                     Ok(ToggleState_Off) => Some(Toggled::Off),
                     Ok(ToggleState_Indeterminate) => Some(Toggled::Mixed),
@@ -2006,9 +2419,13 @@ fn parse_states(
                 }
             } else if let Some(ref pattern) = patterns.selection_item {
                 // For radio buttons, check SelectionItemPattern
-                if unsafe { pattern.CurrentIsSelected() }
-                    .unwrap_or(BOOL(0))
-                    .as_bool()
+                if unsafe {
+                    pattern
+                        .CachedIsSelected()
+                        .or_else(|_| pattern.CurrentIsSelected())
+                }
+                .unwrap_or(BOOL(0))
+                .as_bool()
                 {
                     Some(Toggled::On)
                 } else {
@@ -2023,7 +2440,11 @@ fn parse_states(
 
     // Expanded: from ExpandCollapsePattern
     let expanded = if let Some(ref pattern) = patterns.expand_collapse {
-        match unsafe { pattern.CurrentExpandCollapseState() } {
+        match unsafe {
+            pattern
+                .CachedExpandCollapseState()
+                .or_else(|_| pattern.CurrentExpandCollapseState())
+        } {
             Ok(ExpandCollapseState_Expanded) => Some(true),
             Ok(ExpandCollapseState_Collapsed) => Some(false),
             _ => None,
@@ -2049,9 +2470,13 @@ fn parse_states(
     // hides an error from the other (mirrors the container-selection
     // derivation xa11y-macos does for Qt's AX bridge).
     let selected = match patterns.selection_item {
-        Some(ref pattern) => unsafe { pattern.CurrentIsSelected() }
-            .unwrap_or(BOOL(0))
-            .as_bool(),
+        Some(ref pattern) => unsafe {
+            pattern
+                .CachedIsSelected()
+                .or_else(|_| pattern.CurrentIsSelected())
+        }
+        .unwrap_or(BOOL(0))
+        .as_bool(),
         None => legacy_state_selected(uia_cached_i32(
             element,
             UIA_LegacyIAccessibleStatePropertyId,
@@ -2061,7 +2486,13 @@ fn parse_states(
     let editable = match role {
         Role::TextField | Role::TextArea => {
             if let Some(ref pattern) = patterns.value {
-                unsafe { pattern.CurrentIsReadOnly() }.unwrap_or(BOOL(1)) == BOOL(0)
+                unsafe {
+                    pattern
+                        .CachedIsReadOnly()
+                        .or_else(|_| pattern.CurrentIsReadOnly())
+                }
+                .unwrap_or(BOOL(1))
+                    == BOOL(0)
             } else {
                 true
             }

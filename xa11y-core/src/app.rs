@@ -206,6 +206,7 @@ impl App {
             predicate,
             || "application matching predicate".to_string(),
             true,
+            None,
         )
     }
 
@@ -224,6 +225,7 @@ impl App {
         predicate: F,
         describe: D,
         tag_focus: bool,
+        fast_path: Option<&dyn Fn() -> Result<Option<ElementData>>>,
     ) -> Result<Self>
     where
         F: Fn(&ElementData) -> Result<bool>,
@@ -233,6 +235,11 @@ impl App {
         poll_lookup(
             timeout,
             || {
+                if let Some(fast) = fast_path {
+                    if let Some(data) = fast()? {
+                        return Ok(Self::from_data(Arc::clone(&provider), data));
+                    }
+                }
                 // Discovery is platform-specific (CGWindowList on macOS, AT-SPI
                 // registry on Linux, UIA desktop root on Windows). `list_apps()`
                 // is the canonical enumeration primitive and we filter in Rust,
@@ -299,12 +306,16 @@ impl App {
         // it skips the per-tick focus query (apps from `by_name` therefore
         // report `focused() == false` — use `list`/`find` to query foreground
         // status).
+        // Providers with a native by-title lookup answer in milliseconds; a
+        // miss falls back to enumeration so the semantics stay identical.
+        let fast = Arc::clone(&provider);
         Self::find_matching(
             provider,
             timeout,
             |d| Ok(d.name.as_deref() == Some(name)),
             || format!(r#"application[name="{}"]"#, name),
             false,
+            Some(&move || fast.app_by_name(name)),
         )
     }
 
@@ -800,6 +811,160 @@ mod tests {
         let el = app.as_element();
         assert_eq!(el.data().role, Role::Application);
         assert_eq!(el.data().name.as_deref(), Some("TestApp"));
+    }
+
+    /// Provider with a native by-title lookup. `list_apps` counts how many
+    /// times the slow enumeration ran, so the tests can prove the fast path
+    /// answered (or that a miss fell back to it).
+    struct TitleLookupProvider {
+        inner: Arc<crate::mock::MockProvider>,
+        titles: Vec<&'static str>,
+        list_calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl TitleLookupProvider {
+        fn new(titles: Vec<&'static str>) -> Self {
+            Self {
+                inner: build_provider(),
+                titles,
+                list_calls: std::sync::atomic::AtomicUsize::new(0),
+            }
+        }
+        fn window(name: &str, handle: u64) -> ElementData {
+            ElementData {
+                role: Role::Window,
+                name: Some(name.to_string()),
+                value: None,
+                description: None,
+                bounds: None,
+                actions: vec![],
+                states: crate::element::StateSet::default(),
+                numeric_value: None,
+                min_value: None,
+                max_value: None,
+                stable_id: None,
+                pid: Some(42),
+                raw: Default::default(),
+                handle,
+            }
+        }
+    }
+
+    impl Provider for TitleLookupProvider {
+        fn list_apps(&self) -> Result<Vec<ElementData>> {
+            self.list_calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(vec![Self::window("Main", 100), Self::window("Modal", 101)])
+        }
+        fn app_by_name(&self, name: &str) -> Result<Option<ElementData>> {
+            Ok(self
+                .titles
+                .iter()
+                .find(|t| **t == name)
+                .map(|t| Self::window(t, 200)))
+        }
+        fn list_shell_surfaces(
+            &self,
+        ) -> Result<Vec<(crate::shell::ShellSurfaceKind, ElementData)>> {
+            self.inner.list_shell_surfaces()
+        }
+        fn get_children(&self, e: Option<&ElementData>) -> Result<Vec<ElementData>> {
+            self.inner.get_children(e)
+        }
+        fn get_parent(&self, e: &ElementData) -> Result<Option<ElementData>> {
+            self.inner.get_parent(e)
+        }
+        fn focused_app(&self) -> Result<ElementData> {
+            self.inner.focused_app()
+        }
+        fn press(&self, e: &ElementData) -> Result<()> {
+            self.inner.press(e)
+        }
+        fn focus(&self, e: &ElementData) -> Result<()> {
+            self.inner.focus(e)
+        }
+        fn blur(&self, e: &ElementData) -> Result<()> {
+            self.inner.blur(e)
+        }
+        fn toggle(&self, e: &ElementData) -> Result<()> {
+            self.inner.toggle(e)
+        }
+        fn select(&self, e: &ElementData) -> Result<()> {
+            self.inner.select(e)
+        }
+        fn expand(&self, e: &ElementData) -> Result<()> {
+            self.inner.expand(e)
+        }
+        fn collapse(&self, e: &ElementData) -> Result<()> {
+            self.inner.collapse(e)
+        }
+        fn show_menu(&self, e: &ElementData) -> Result<()> {
+            self.inner.show_menu(e)
+        }
+        fn increment(&self, e: &ElementData) -> Result<()> {
+            self.inner.increment(e)
+        }
+        fn decrement(&self, e: &ElementData) -> Result<()> {
+            self.inner.decrement(e)
+        }
+        fn scroll_into_view(&self, e: &ElementData) -> Result<()> {
+            self.inner.scroll_into_view(e)
+        }
+        fn set_value(&self, e: &ElementData, v: &str) -> Result<()> {
+            self.inner.set_value(e, v)
+        }
+        fn set_numeric_value(&self, e: &ElementData, v: f64) -> Result<()> {
+            self.inner.set_numeric_value(e, v)
+        }
+        fn type_text(&self, e: &ElementData, t: &str) -> Result<()> {
+            self.inner.type_text(e, t)
+        }
+        fn set_text_selection(&self, e: &ElementData, s: u32, end: u32) -> Result<()> {
+            self.inner.set_text_selection(e, s, end)
+        }
+        fn perform_action(&self, e: &ElementData, a: &str) -> Result<()> {
+            self.inner.perform_action(e, a)
+        }
+        fn subscribe(&self, e: &ElementData) -> Result<Subscription> {
+            self.inner.subscribe(e)
+        }
+    }
+
+    #[test]
+    fn by_name_with_uses_the_provider_title_lookup_before_enumerating() {
+        let provider = Arc::new(TitleLookupProvider::new(vec!["Modal"]));
+        let app = App::by_name_with(
+            Arc::clone(&provider) as Arc<dyn Provider>,
+            "Modal",
+            Duration::ZERO,
+        )
+        .expect("fast path resolves the window");
+        assert_eq!(app.name, "Modal");
+        assert_eq!(
+            provider
+                .list_calls
+                .load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "a title-lookup hit must not enumerate every app"
+        );
+    }
+
+    #[test]
+    fn by_name_with_falls_back_to_enumeration_when_the_title_lookup_misses() {
+        let provider = Arc::new(TitleLookupProvider::new(vec![]));
+        let app = App::by_name_with(
+            Arc::clone(&provider) as Arc<dyn Provider>,
+            "Main",
+            Duration::ZERO,
+        )
+        .expect("enumeration still finds the app");
+        assert_eq!(app.name, "Main");
+        assert_eq!(
+            provider
+                .list_calls
+                .load(std::sync::atomic::Ordering::SeqCst),
+            1
+        );
     }
 
     #[test]
