@@ -7,7 +7,7 @@ use crate::event::ElementState;
 use crate::provider::Provider;
 use crate::role::Role;
 use crate::selector::{
-    chain_combinator, matches_simple, Combinator, MatchOp, RoleMatch, Selector, SelectorGroup,
+    chain_combinator, matches_simple, Combinator, RoleMatch, Selector, SelectorGroup,
     SelectorSegment, SimpleSelector,
 };
 
@@ -271,9 +271,13 @@ impl Locator {
         // be wrongly excluded; truncate after the merge instead. (Scoped
         // searches via the single-app fast path above still get phase-1
         // limit pushdown inside the native backend.)
-        let apps = match self.windows_by_title(group)? {
-            Some(windows) if !windows.is_empty() => windows,
-            _ => self.provider.list_apps()?,
+        // Windows resolved by title come straight from their handles; the
+        // per-app descendant search (2b) below would only re-find nested
+        // windows with the same title, which the handle lookup already
+        // enumerated, at the cost of a full subtree walk.
+        let (apps, by_title) = match self.windows_by_title(group)? {
+            Some(windows) if !windows.is_empty() => (windows, true),
+            _ => (self.provider.list_apps()?, false),
         };
         let mut out: Vec<ElementData> = Vec::new();
         let mut seen: std::collections::HashSet<u64> = std::collections::HashSet::new();
@@ -315,6 +319,9 @@ impl Locator {
             }
 
             // (2b) Descendant matches inside the app's subtree.
+            if by_title {
+                continue;
+            }
             let per_app = self.provider.find_elements_group(app, group, None, None)?;
             for d in per_app {
                 if seen.insert(d.handle) {
@@ -328,9 +335,9 @@ impl Locator {
         Ok(out)
     }
 
-    /// Rootless group whose every clause starts with `window[name="…"]` /
-    /// `dialog[name="…"]` (exact name): ask the provider for those windows by
-    /// title instead of enumerating every app. `None` = not applicable or
+    /// Rootless group whose every clause starts with `window[name…"…"]` /
+    /// `dialog[name…"…"]` (any operator): ask the provider for those windows
+    /// by title instead of enumerating every app. `None` = not applicable or
     /// unsupported; the caller then takes the `list_apps` path.
     fn windows_by_title(&self, group: &SelectorGroup) -> Result<Option<Vec<ElementData>>> {
         let mut out: Vec<ElementData> = Vec::new();
@@ -346,11 +353,11 @@ impl Locator {
                 .simple
                 .filters
                 .iter()
-                .find(|f| f.attr == "name" && f.op == MatchOp::Exact && !f.value.is_empty());
+                .find(|f| f.attr == "name" && !f.value.is_empty());
             let (true, Some(name)) = (is_window, name) else {
                 return Ok(None);
             };
-            let Some(found) = self.provider.windows_by_title(&name.value)? else {
+            let Some(found) = self.provider.windows_by_title(&name.value, &name.op)? else {
                 return Ok(None);
             };
             out.extend(found);
@@ -912,6 +919,7 @@ mod tests {
 
     use super::*;
     use crate::mock::build_provider;
+    use crate::selector::MatchOp;
 
     fn root_locator(selector: &str) -> Locator {
         let provider = build_provider();
@@ -971,12 +979,23 @@ mod tests {
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(vec![Self::window("Main", 100), Self::window("Modal", 101)])
         }
-        fn windows_by_title(&self, name: &str) -> Result<Option<Vec<ElementData>>> {
+        fn windows_by_title(
+            &self,
+            name: &str,
+            op: &MatchOp,
+        ) -> Result<Option<Vec<ElementData>>> {
+            let lower = name.to_lowercase();
             Ok(Some(
                 self.titles
                     .iter()
-                    .filter(|t| **t == name)
-                    .map(|t| Self::window(t, 200))
+                    .filter(|t| match op {
+                        MatchOp::Exact => **t == name,
+                        MatchOp::Contains => t.to_lowercase().contains(&lower),
+                        MatchOp::StartsWith => t.to_lowercase().starts_with(&lower),
+                        MatchOp::EndsWith => t.to_lowercase().ends_with(&lower),
+                    })
+                    .enumerate()
+                    .map(|(i, t)| Self::window(t, 200 + i as u64))
                     .collect(),
             ))
         }
@@ -1073,7 +1092,7 @@ mod tests {
     }
 
     #[test]
-    fn rootless_window_with_substring_name_keeps_the_enumeration_path() {
+    fn rootless_window_with_substring_name_passes_the_operator_to_the_lookup() {
         let provider = Arc::new(TitleLookupProvider::new(vec!["Modal"]));
         let loc = Locator::new(
             Arc::clone(&provider) as Arc<dyn Provider>,
@@ -1081,7 +1100,21 @@ mod tests {
             r#"window[name*="mod"]"#,
         );
         assert_eq!(loc.count().unwrap(), 1);
-        assert_eq!(provider.list_calls(), 1, "only exact names go through the title lookup");
+        assert_eq!(provider.list_calls(), 0);
+    }
+
+    #[test]
+    fn rootless_window_by_title_does_not_rescan_the_window_subtree() {
+        // The mock's `find_elements_group` would be consulted for descendants
+        // named like the window; a handle-resolved window skips that walk.
+        let provider = Arc::new(TitleLookupProvider::new(vec!["Modal", "Modal"]));
+        let loc = Locator::new(
+            Arc::clone(&provider) as Arc<dyn Provider>,
+            None,
+            r#"window[name="Modal"]"#,
+        );
+        assert_eq!(loc.count().unwrap(), 2, "both handles are reported, nothing else");
+        assert_eq!(provider.list_calls(), 0);
     }
 
     #[test]
