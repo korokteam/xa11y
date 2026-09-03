@@ -149,7 +149,9 @@ impl WindowsProvider {
         for cond in conditions {
             acc = Some(match acc {
                 None => cond,
-                Some(prev) => uia_call(|| unsafe { self.automation.CreateOrCondition(&prev, &cond) })?,
+                Some(prev) => {
+                    uia_call(|| unsafe { self.automation.CreateOrCondition(&prev, &cond) })?
+                }
             });
         }
         Ok(acc)
@@ -201,8 +203,10 @@ impl WindowsProvider {
             }
             Some(RoleMatch::Platform(class)) => {
                 conds.push(uia_call(|| unsafe {
-                    self.automation
-                        .CreatePropertyCondition(UIA_ClassNamePropertyId, &VARIANT::from(class.as_str()))
+                    self.automation.CreatePropertyCondition(
+                        UIA_ClassNamePropertyId,
+                        &VARIANT::from(class.as_str()),
+                    )
                 })?);
             }
             None => {}
@@ -228,10 +232,7 @@ impl WindowsProvider {
     /// One condition for a whole group: the OR of every clause's first
     /// segment. `None` as soon as one clause cannot be narrowed (the walk then
     /// has to visit everything anyway).
-    fn condition_for_group(
-        &self,
-        group: &SelectorGroup,
-    ) -> Result<Option<IUIAutomationCondition>> {
+    fn condition_for_group(&self, group: &SelectorGroup) -> Result<Option<IUIAutomationCondition>> {
         let mut per_clause = Vec::with_capacity(group.clauses.len());
         for clause in &group.clauses {
             let Some(first) = clause.segments.first() else {
@@ -973,7 +974,12 @@ fn control_types_for_role(role: Role) -> Option<Vec<UIA_CONTROLTYPE_ID>> {
     // AriaRole / IsDialog refine these four snapshot roles into other roles.
     if matches!(
         role,
-        Role::Alert | Role::Dialog | Role::Heading | Role::Separator | Role::ProgressBar | Role::Link
+        Role::Alert
+            | Role::Dialog
+            | Role::Heading
+            | Role::Separator
+            | Role::ProgressBar
+            | Role::Link
     ) {
         types.extend(mapping_to(&[
             Role::StaticText,
@@ -1043,7 +1049,10 @@ fn hwnds_with_title(title: &str, op: &MatchOp) -> Vec<HWND> {
         return Vec::new();
     }
     unsafe {
-        let _ = EnumWindows(Some(visitar_topo), LPARAM(&mut busca as *mut Busca as isize));
+        let _ = EnumWindows(
+            Some(visitar_topo),
+            LPARAM(&mut busca as *mut Busca as isize),
+        );
     }
     busca.achados
 }
@@ -1423,11 +1432,7 @@ impl Provider for WindowsProvider {
 
     /// Every visible window with this exact title, top-level or child (MDI
     /// sheets, owned dialogs), straight from the handle.
-    fn windows_by_title(
-        &self,
-        name: &str,
-        op: &MatchOp,
-    ) -> Result<Option<Vec<ElementData>>> {
+    fn windows_by_title(&self, name: &str, op: &MatchOp) -> Result<Option<Vec<ElementData>>> {
         let mut out = Vec::new();
         for hwnd in hwnds_with_title(name, op) {
             out.push(self.element_from_hwnd(hwnd)?);
@@ -2402,7 +2407,11 @@ fn parse_states(
     let checked = match role {
         Role::CheckBox | Role::RadioButton => {
             if let Some(ref pattern) = patterns.toggle {
-                match unsafe { pattern.CachedToggleState().or_else(|_| pattern.CurrentToggleState()) } {
+                match unsafe {
+                    pattern
+                        .CachedToggleState()
+                        .or_else(|_| pattern.CurrentToggleState())
+                } {
                     Ok(ToggleState_On) => Some(Toggled::On),
                     Ok(ToggleState_Off) => Some(Toggled::Off),
                     Ok(ToggleState_Indeterminate) => Some(Toggled::Mixed),
@@ -2410,9 +2419,13 @@ fn parse_states(
                 }
             } else if let Some(ref pattern) = patterns.selection_item {
                 // For radio buttons, check SelectionItemPattern
-                if unsafe { pattern.CachedIsSelected().or_else(|_| pattern.CurrentIsSelected()) }
-                    .unwrap_or(BOOL(0))
-                    .as_bool()
+                if unsafe {
+                    pattern
+                        .CachedIsSelected()
+                        .or_else(|_| pattern.CurrentIsSelected())
+                }
+                .unwrap_or(BOOL(0))
+                .as_bool()
                 {
                     Some(Toggled::On)
                 } else {
@@ -2457,9 +2470,13 @@ fn parse_states(
     // hides an error from the other (mirrors the container-selection
     // derivation xa11y-macos does for Qt's AX bridge).
     let selected = match patterns.selection_item {
-        Some(ref pattern) => unsafe { pattern.CachedIsSelected().or_else(|_| pattern.CurrentIsSelected()) }
-            .unwrap_or(BOOL(0))
-            .as_bool(),
+        Some(ref pattern) => unsafe {
+            pattern
+                .CachedIsSelected()
+                .or_else(|_| pattern.CurrentIsSelected())
+        }
+        .unwrap_or(BOOL(0))
+        .as_bool(),
         None => legacy_state_selected(uia_cached_i32(
             element,
             UIA_LegacyIAccessibleStatePropertyId,
@@ -2469,8 +2486,12 @@ fn parse_states(
     let editable = match role {
         Role::TextField | Role::TextArea => {
             if let Some(ref pattern) = patterns.value {
-                unsafe { pattern.CachedIsReadOnly().or_else(|_| pattern.CurrentIsReadOnly()) }
-                    .unwrap_or(BOOL(1))
+                unsafe {
+                    pattern
+                        .CachedIsReadOnly()
+                        .or_else(|_| pattern.CurrentIsReadOnly())
+                }
+                .unwrap_or(BOOL(1))
                     == BOOL(0)
             } else {
                 true

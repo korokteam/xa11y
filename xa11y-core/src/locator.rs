@@ -981,11 +981,7 @@ mod tests {
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Ok(vec![Self::window("Main", 100), Self::window("Modal", 101)])
         }
-        fn windows_by_title(
-            &self,
-            name: &str,
-            op: &MatchOp,
-        ) -> Result<Option<Vec<ElementData>>> {
+        fn windows_by_title(&self, name: &str, op: &MatchOp) -> Result<Option<Vec<ElementData>>> {
             let lower = name.to_lowercase();
             Ok(Some(
                 self.titles
@@ -1078,7 +1074,11 @@ mod tests {
         );
         let el = loc.element().unwrap();
         assert_eq!(el.data().name.as_deref(), Some("Modal"));
-        assert_eq!(provider.list_calls(), 0, "exact-title window must skip app enumeration");
+        assert_eq!(
+            provider.list_calls(),
+            0,
+            "exact-title window must skip app enumeration"
+        );
     }
 
     #[test]
@@ -1117,7 +1117,11 @@ mod tests {
             None,
             r#"window[name="Modal"]"#,
         );
-        assert_eq!(loc.count().unwrap(), 2, "both handles are reported, nothing else");
+        assert_eq!(
+            loc.count().unwrap(),
+            2,
+            "both handles are reported, nothing else"
+        );
         assert_eq!(provider.list_calls(), 0);
     }
 
