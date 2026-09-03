@@ -2859,7 +2859,7 @@ checksum = "acf4d1bc32aa46eec18caa634ec3cf4c05bfa151f12b93b510b15190f69a1ca8"
 
 [[package]]
 name = "xa11y"
-version = "0.13.0"
+version = "0.13.0-korok.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2872,7 +2872,7 @@ dependencies = [
 
 [[package]]
 name = "xa11y-core"
-version = "0.13.0"
+version = "0.13.0-korok.1"
 dependencies = [
  "png",
  "serde",
@@ -2899,7 +2899,7 @@ dependencies = [
 
 [[package]]
 name = "xa11y-linux"
-version = "0.13.0"
+version = "0.13.0-korok.1"
 dependencies = [
  "evdev",
  "png",
@@ -2916,7 +2916,7 @@ dependencies = [
 
 [[package]]
 name = "xa11y-macos"
-version = "0.13.0"
+version = "0.13.0-korok.1"
 dependencies = [
  "cc",
  "core-foundation 0.10.1",
@@ -2927,7 +2927,7 @@ dependencies = [
 
 [[package]]
 name = "xa11y-test-app"
-version = "0.13.0"
+version = "0.13.0-korok.1"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -2936,7 +2936,7 @@ dependencies = [
 
 [[package]]
 name = "xa11y-windows"
-version = "0.13.0"
+version = "0.13.0-korok.1"
 dependencies = [
  "serde_json",
  "windows",
