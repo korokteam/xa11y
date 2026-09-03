@@ -271,13 +271,15 @@ impl Locator {
         // be wrongly excluded; truncate after the merge instead. (Scoped
         // searches via the single-app fast path above still get phase-1
         // limit pushdown inside the native backend.)
-        // Windows resolved by title come straight from their handles; the
-        // per-app descendant search (2b) below would only re-find nested
-        // windows with the same title, which the handle lookup already
-        // enumerated, at the cost of a full subtree walk.
+        // Windows resolved by title come straight from their handles, and a
+        // miss is final: polling for a dialog that is not there yet must stay
+        // as cheap as a hit (the enumeration fallback costs seconds per poll
+        // on a busy desktop). The per-app descendant search (2b) below would
+        // only re-find nested windows with the same title, which the handle
+        // lookup already enumerated, at the cost of a full subtree walk.
         let (apps, by_title) = match self.windows_by_title(group)? {
-            Some(windows) if !windows.is_empty() => (windows, true),
-            _ => (self.provider.list_apps()?, false),
+            Some(windows) => (windows, true),
+            None => (self.provider.list_apps()?, false),
         };
         let mut out: Vec<ElementData> = Vec::new();
         let mut seen: std::collections::HashSet<u64> = std::collections::HashSet::new();
@@ -1080,15 +1082,17 @@ mod tests {
     }
 
     #[test]
-    fn rootless_window_lookup_miss_falls_back_to_app_enumeration() {
+    fn rootless_window_lookup_miss_is_final_and_cheap() {
+        // A provider that answers by title is trusted on a miss too: a poll
+        // for a dialog that has not opened yet must not pay the enumeration.
         let provider = Arc::new(TitleLookupProvider::new(vec![]));
         let loc = Locator::new(
             Arc::clone(&provider) as Arc<dyn Provider>,
             None,
             r#"window[name="Main"]"#,
         );
-        assert_eq!(loc.element().unwrap().data().name.as_deref(), Some("Main"));
-        assert_eq!(provider.list_calls(), 1);
+        assert!(!loc.exists().unwrap());
+        assert_eq!(provider.list_calls(), 0);
     }
 
     #[test]
