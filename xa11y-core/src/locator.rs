@@ -5,9 +5,10 @@ use crate::element::{Element, ElementData};
 use crate::error::{Diagnosis, Error, Result};
 use crate::event::ElementState;
 use crate::provider::Provider;
+use crate::role::Role;
 use crate::selector::{
-    chain_combinator, matches_simple, Combinator, Selector, SelectorGroup, SelectorSegment,
-    SimpleSelector,
+    chain_combinator, matches_simple, Combinator, MatchOp, RoleMatch, Selector, SelectorGroup,
+    SelectorSegment, SimpleSelector,
 };
 
 // ── Diagnosis bounds (tenet 6) ──────────────────────────────────────
@@ -270,7 +271,10 @@ impl Locator {
         // be wrongly excluded; truncate after the merge instead. (Scoped
         // searches via the single-app fast path above still get phase-1
         // limit pushdown inside the native backend.)
-        let apps = self.provider.list_apps()?;
+        let apps = match self.windows_by_title(group)? {
+            Some(windows) if !windows.is_empty() => windows,
+            _ => self.provider.list_apps()?,
+        };
         let mut out: Vec<ElementData> = Vec::new();
         let mut seen: std::collections::HashSet<u64> = std::collections::HashSet::new();
         for app in &apps {
@@ -322,6 +326,36 @@ impl Locator {
             out.truncate(l);
         }
         Ok(out)
+    }
+
+    /// Rootless group whose every clause starts with `window[name="…"]` /
+    /// `dialog[name="…"]` (exact name): ask the provider for those windows by
+    /// title instead of enumerating every app. `None` = not applicable or
+    /// unsupported; the caller then takes the `list_apps` path.
+    fn windows_by_title(&self, group: &SelectorGroup) -> Result<Option<Vec<ElementData>>> {
+        let mut out: Vec<ElementData> = Vec::new();
+        for clause in &group.clauses {
+            let Some(first) = clause.segments.first() else {
+                return Ok(None);
+            };
+            let is_window = matches!(
+                first.simple.role,
+                Some(RoleMatch::Normalized(Role::Window | Role::Dialog))
+            );
+            let name = first
+                .simple
+                .filters
+                .iter()
+                .find(|f| f.attr == "name" && f.op == MatchOp::Exact && !f.value.is_empty());
+            let (true, Some(name)) = (is_window, name) else {
+                return Ok(None);
+            };
+            let Some(found) = self.provider.windows_by_title(&name.value)? else {
+                return Ok(None);
+            };
+            out.extend(found);
+        }
+        Ok(Some(out))
     }
 
     /// Resolve the selector to a single ElementData.
@@ -890,6 +924,164 @@ mod tests {
             .iter()
             .map(|e| e.data().name.clone().unwrap_or_default())
             .collect()
+    }
+
+    /// Provider with a native window-by-title lookup; `list_apps` counts the
+    /// slow enumerations so the tests can tell which path a selector took.
+    struct TitleLookupProvider {
+        inner: Arc<crate::mock::MockProvider>,
+        titles: Vec<&'static str>,
+        list_calls: std::sync::atomic::AtomicUsize,
+    }
+
+    impl TitleLookupProvider {
+        fn new(titles: Vec<&'static str>) -> Self {
+            Self {
+                inner: build_provider(),
+                titles,
+                list_calls: std::sync::atomic::AtomicUsize::new(0),
+            }
+        }
+        fn window(name: &str, handle: u64) -> ElementData {
+            ElementData {
+                role: Role::Window,
+                name: Some(name.to_string()),
+                value: None,
+                description: None,
+                bounds: None,
+                actions: vec![],
+                states: crate::element::StateSet::default(),
+                numeric_value: None,
+                min_value: None,
+                max_value: None,
+                stable_id: None,
+                pid: Some(42),
+                raw: Default::default(),
+                handle,
+            }
+        }
+        fn list_calls(&self) -> usize {
+            self.list_calls.load(std::sync::atomic::Ordering::SeqCst)
+        }
+    }
+
+    impl Provider for TitleLookupProvider {
+        fn list_apps(&self) -> Result<Vec<ElementData>> {
+            self.list_calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Ok(vec![Self::window("Main", 100), Self::window("Modal", 101)])
+        }
+        fn windows_by_title(&self, name: &str) -> Result<Option<Vec<ElementData>>> {
+            Ok(Some(
+                self.titles
+                    .iter()
+                    .filter(|t| **t == name)
+                    .map(|t| Self::window(t, 200))
+                    .collect(),
+            ))
+        }
+        fn list_shell_surfaces(
+            &self,
+        ) -> Result<Vec<(crate::shell::ShellSurfaceKind, ElementData)>> {
+            self.inner.list_shell_surfaces()
+        }
+        fn get_children(&self, e: Option<&ElementData>) -> Result<Vec<ElementData>> {
+            self.inner.get_children(e)
+        }
+        fn get_parent(&self, e: &ElementData) -> Result<Option<ElementData>> {
+            self.inner.get_parent(e)
+        }
+        fn focused_app(&self) -> Result<ElementData> {
+            self.inner.focused_app()
+        }
+        fn press(&self, e: &ElementData) -> Result<()> {
+            self.inner.press(e)
+        }
+        fn focus(&self, e: &ElementData) -> Result<()> {
+            self.inner.focus(e)
+        }
+        fn blur(&self, e: &ElementData) -> Result<()> {
+            self.inner.blur(e)
+        }
+        fn toggle(&self, e: &ElementData) -> Result<()> {
+            self.inner.toggle(e)
+        }
+        fn select(&self, e: &ElementData) -> Result<()> {
+            self.inner.select(e)
+        }
+        fn expand(&self, e: &ElementData) -> Result<()> {
+            self.inner.expand(e)
+        }
+        fn collapse(&self, e: &ElementData) -> Result<()> {
+            self.inner.collapse(e)
+        }
+        fn show_menu(&self, e: &ElementData) -> Result<()> {
+            self.inner.show_menu(e)
+        }
+        fn increment(&self, e: &ElementData) -> Result<()> {
+            self.inner.increment(e)
+        }
+        fn decrement(&self, e: &ElementData) -> Result<()> {
+            self.inner.decrement(e)
+        }
+        fn scroll_into_view(&self, e: &ElementData) -> Result<()> {
+            self.inner.scroll_into_view(e)
+        }
+        fn set_value(&self, e: &ElementData, v: &str) -> Result<()> {
+            self.inner.set_value(e, v)
+        }
+        fn set_numeric_value(&self, e: &ElementData, v: f64) -> Result<()> {
+            self.inner.set_numeric_value(e, v)
+        }
+        fn type_text(&self, e: &ElementData, t: &str) -> Result<()> {
+            self.inner.type_text(e, t)
+        }
+        fn set_text_selection(&self, e: &ElementData, s: u32, end: u32) -> Result<()> {
+            self.inner.set_text_selection(e, s, end)
+        }
+        fn perform_action(&self, e: &ElementData, a: &str) -> Result<()> {
+            self.inner.perform_action(e, a)
+        }
+        fn subscribe(&self, e: &ElementData) -> Result<crate::event_provider::Subscription> {
+            self.inner.subscribe(e)
+        }
+    }
+
+    #[test]
+    fn rootless_window_by_exact_name_resolves_from_the_title_lookup() {
+        let provider = Arc::new(TitleLookupProvider::new(vec!["Modal"]));
+        let loc = Locator::new(
+            Arc::clone(&provider) as Arc<dyn Provider>,
+            None,
+            r#"window[name="Modal"]"#,
+        );
+        let el = loc.element().unwrap();
+        assert_eq!(el.data().name.as_deref(), Some("Modal"));
+        assert_eq!(provider.list_calls(), 0, "exact-title window must skip app enumeration");
+    }
+
+    #[test]
+    fn rootless_window_lookup_miss_falls_back_to_app_enumeration() {
+        let provider = Arc::new(TitleLookupProvider::new(vec![]));
+        let loc = Locator::new(
+            Arc::clone(&provider) as Arc<dyn Provider>,
+            None,
+            r#"window[name="Main"]"#,
+        );
+        assert_eq!(loc.element().unwrap().data().name.as_deref(), Some("Main"));
+        assert_eq!(provider.list_calls(), 1);
+    }
+
+    #[test]
+    fn rootless_window_with_substring_name_keeps_the_enumeration_path() {
+        let provider = Arc::new(TitleLookupProvider::new(vec!["Modal"]));
+        let loc = Locator::new(
+            Arc::clone(&provider) as Arc<dyn Provider>,
+            None,
+            r#"window[name*="mod"]"#,
+        );
+        assert_eq!(loc.count().unwrap(), 1);
+        assert_eq!(provider.list_calls(), 1, "only exact names go through the title lookup");
     }
 
     #[test]
