@@ -61,12 +61,16 @@ pub trait Provider: Send + Sync {
         Ok(None)
     }
 
-    /// Fast path for rootless `window[name="…"]` selectors: every visible
-    /// window (top-level or child, e.g. an MDI sheet) whose exact title is
-    /// `name`, resolved straight from the native window handle instead of a
-    /// tree walk. `Ok(None)` means unsupported; an empty `Vec` means the
-    /// lookup ran and found nothing.
-    fn windows_by_title(&self, _name: &str) -> Result<Option<Vec<ElementData>>> {
+    /// Fast path for rootless `window[name…"…"]` selectors: every visible
+    /// window (top-level or child, e.g. an MDI sheet) whose title matches
+    /// `name` under `op` (the selector's operator), resolved straight from the
+    /// native window handle instead of a tree walk. `Ok(None)` means
+    /// unsupported; an empty `Vec` means the lookup ran and found nothing.
+    fn windows_by_title(
+        &self,
+        _name: &str,
+        _op: &crate::selector::MatchOp,
+    ) -> Result<Option<Vec<ElementData>>> {
         Ok(None)
     }
 
@@ -370,8 +374,12 @@ impl<T: Provider + ?Sized> Provider for &T {
     fn app_by_name(&self, name: &str) -> Result<Option<ElementData>> {
         (**self).app_by_name(name)
     }
-    fn windows_by_title(&self, name: &str) -> Result<Option<Vec<ElementData>>> {
-        (**self).windows_by_title(name)
+    fn windows_by_title(
+        &self,
+        name: &str,
+        op: &crate::selector::MatchOp,
+    ) -> Result<Option<Vec<ElementData>>> {
+        (**self).windows_by_title(name, op)
     }
     // Delegated explicitly (despite having a default impl) so a concrete
     // provider's PID-direct override isn't bypassed when it's used through a

@@ -995,11 +995,14 @@ fn control_types_for_role(role: Role) -> Option<Vec<UIA_CONTROLTYPE_ID>> {
 }
 
 /// Visible HWNDs (top-level and children — MDI sheets and owned dialogs are
-/// child windows in Win32) whose exact title is `title`. Pure Win32: no
-/// accessibility round trip, microseconds even on a busy desktop.
-fn hwnds_with_title(title: &str) -> Vec<HWND> {
-    struct Busca {
-        alvo: Vec<u16>,
+/// child windows in Win32) whose title matches `title` under `op`, with the
+/// selector's own semantics (`=` exact and case-sensitive, the others
+/// case-insensitive). Pure Win32: no accessibility round trip, microseconds
+/// even on a busy desktop.
+fn hwnds_with_title(title: &str, op: &MatchOp) -> Vec<HWND> {
+    struct Busca<'a> {
+        alvo: &'a str,
+        op: &'a MatchOp,
         achados: Vec<HWND>,
     }
     unsafe extern "system" fn visitar(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -1007,8 +1010,19 @@ fn hwnds_with_title(title: &str) -> Vec<HWND> {
         if IsWindowVisible(hwnd).as_bool() {
             let mut buf = [0u16; 512];
             let n = GetWindowTextW(hwnd, &mut buf) as usize;
-            if n == busca.alvo.len() && buf[..n] == busca.alvo[..] {
-                busca.achados.push(hwnd);
+            if n > 0 {
+                let texto = String::from_utf16_lossy(&buf[..n]);
+                let bate = match busca.op {
+                    MatchOp::Exact => texto == busca.alvo,
+                    MatchOp::Contains => texto.to_lowercase().contains(&busca.alvo.to_lowercase()),
+                    MatchOp::StartsWith => {
+                        texto.to_lowercase().starts_with(&busca.alvo.to_lowercase())
+                    }
+                    MatchOp::EndsWith => texto.to_lowercase().ends_with(&busca.alvo.to_lowercase()),
+                };
+                if bate {
+                    busca.achados.push(hwnd);
+                }
             }
         }
         BOOL(1)
@@ -1021,10 +1035,11 @@ fn hwnds_with_title(title: &str) -> Vec<HWND> {
         BOOL(1)
     }
     let mut busca = Busca {
-        alvo: title.encode_utf16().collect(),
+        alvo: title,
+        op,
         achados: Vec::new(),
     };
-    if busca.alvo.is_empty() || busca.alvo.len() >= 512 {
+    if title.is_empty() {
         return Vec::new();
     }
     unsafe {
@@ -1408,9 +1423,13 @@ impl Provider for WindowsProvider {
 
     /// Every visible window with this exact title, top-level or child (MDI
     /// sheets, owned dialogs), straight from the handle.
-    fn windows_by_title(&self, name: &str) -> Result<Option<Vec<ElementData>>> {
+    fn windows_by_title(
+        &self,
+        name: &str,
+        op: &MatchOp,
+    ) -> Result<Option<Vec<ElementData>>> {
         let mut out = Vec::new();
-        for hwnd in hwnds_with_title(name) {
+        for hwnd in hwnds_with_title(name, op) {
             out.push(self.element_from_hwnd(hwnd)?);
         }
         Ok(Some(out))
