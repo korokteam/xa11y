@@ -52,6 +52,28 @@ pub trait Provider: Send + Sync {
     /// would hide the difference from implementors.
     fn list_apps(&self) -> Result<Vec<ElementData>>;
 
+    /// Fast path for `App::by_name`: resolve a top-level window by its exact
+    /// title without enumerating every application (on Windows a UIA desktop
+    /// enumeration can take ~10 s while a modal dialog is open). `Ok(None)`
+    /// means "unsupported or not found" and callers fall back to
+    /// [`list_apps`](Self::list_apps).
+    fn app_by_name(&self, _name: &str) -> Result<Option<ElementData>> {
+        Ok(None)
+    }
+
+    /// Fast path for rootless `window[name…"…"]` selectors: every visible
+    /// window (top-level or child, e.g. an MDI sheet) whose title matches
+    /// `name` under `op` (the selector's operator), resolved straight from the
+    /// native window handle instead of a tree walk. `Ok(None)` means
+    /// unsupported; an empty `Vec` means the lookup ran and found nothing.
+    fn windows_by_title(
+        &self,
+        _name: &str,
+        _op: &crate::selector::MatchOp,
+    ) -> Result<Option<Vec<ElementData>>> {
+        Ok(None)
+    }
+
     /// Find the application owning process `pid` — one attempt, no polling.
     ///
     /// This is the single-shot discovery primitive behind `App::by_pid`; the
@@ -348,6 +370,16 @@ impl<T: Provider + ?Sized> Provider for &T {
     }
     fn list_apps(&self) -> Result<Vec<ElementData>> {
         (**self).list_apps()
+    }
+    fn app_by_name(&self, name: &str) -> Result<Option<ElementData>> {
+        (**self).app_by_name(name)
+    }
+    fn windows_by_title(
+        &self,
+        name: &str,
+        op: &crate::selector::MatchOp,
+    ) -> Result<Option<Vec<ElementData>>> {
+        (**self).windows_by_title(name, op)
     }
     // Delegated explicitly (despite having a default impl) so a concrete
     // provider's PID-direct override isn't bypassed when it's used through a

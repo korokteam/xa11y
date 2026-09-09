@@ -1,0 +1,37 @@
+# Binário napi win32-x64 do fork (branch korok/*), para o rpa-runtime das VMs do Korok.
+name: korok-win32
+
+on:
+  push:
+    branches: ['korok/**']
+  workflow_dispatch:
+
+jobs:
+  win32-x64:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: xa11y-js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx napi build --platform --release --target x86_64-pc-windows-msvc --js native.js --dts native.d.ts
+      - run: node scripts/patch-native-dts.mjs
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xa11y-win32-x64-msvc
+          path: |
+            xa11y-js/xa11y.win32-x64-msvc.node
+            xa11y-js/index.js
+            xa11y-js/index.d.ts
+            xa11y-js/native.js
+            xa11y-js/native.d.ts
+            xa11y-js/package.json
+          if-no-files-found: error
